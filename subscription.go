@@ -57,19 +57,16 @@ func (p *Profile) UpdateSubscriptionWithFeed(sub *Subscription, feed *gofeed.Fee
 		}
 		added++
 		p.Casts = append(p.Casts, &Cast{
-			Title:            item.Title,
-			SubTitle:         item.Custom["itunes:subtitle"],
-			Description:      item.Description,
-			SubscriptionUrl:  sub.Url,
-			Link:             item.Link,
-			MpegLink:         mpegLink,
-			GUID:             item.GUID,
-			Size:             size,
-			ISOName:          "",
-			PubDate:          item.PublishedParsed,
-			PlannedDate:      nil,
-			ISOGeneratedDate: nil,
-			SkippedDate:      nil,
+			Title:           item.Title,
+			SubTitle:        item.Custom["itunes:subtitle"],
+			Description:     item.Description,
+			SubscriptionUrl: sub.Url,
+			Link:            item.Link,
+			MpegLink:        mpegLink,
+			GUID:            item.GUID,
+			Size:            size,
+			PubDate:         item.PublishedParsed,
+			SkippedDate:     nil,
 		})
 	}
 	return added, nil

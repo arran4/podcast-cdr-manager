@@ -14,11 +14,17 @@ type MainCliPoint func(remainingArgs []string, mc *MainConfig) error
 
 var (
 	MainSections = map[string]MainCliPoint{
-		"subscribe":    RunSubscribe,
-		"subscription": RunSubscription,
-		"profile":      RunProfile,
-		"help":         RunHelp,
-		"":             RunHelp,
+		"subscribe":     RunSubscribe,
+		"subscription":  RunSubscription,
+		"subscriptions": RunSubscription,
+		"profile":       RunProfile,
+		"profiles":      RunProfile,
+		"disk":          RunDisk,
+		"disks":         RunDisk,
+		"cast":          RunCast,
+		"casts":         RunCast,
+		"help":          RunHelp,
+		"":              RunHelp,
 	}
 )
 
@@ -32,6 +38,8 @@ func RunHelp(args []string, mc *MainConfig) error {
 	fmt.Printf("%19s %-20s %-39s\n", "subscribe", "", "Subscribe to a new podcast")
 	fmt.Printf("%19s %-20s %-39s\n", "subscriptions", "", "Manage existing subscriptions")
 	fmt.Printf("%19s %-20s %-39s\n", "profile", "", "Profile management")
+	fmt.Printf("%19s %-20s %-39s\n", "disk", "", "Disk management")
+	fmt.Printf("%19s %-20s %-39s\n", "cast", "", "Cast management")
 	return nil
 }
 
@@ -60,7 +68,7 @@ func main() {
 		section = RunHelp
 		fmt.Printf("Failed to find %s\n", fs.Arg(1))
 	}
-	if err := section(append([]string{fs.Arg(0)}, fs.Args()[2:]...), mc); err != nil {
+	if err := section(append([]string{fs.Arg(0)}, fs.Args()[min(2, len(fs.Args())):]...), mc); err != nil {
 		fmt.Printf("Error running %s: %s\n", flag.Arg(1), err)
 		os.Exit(-1)
 		return

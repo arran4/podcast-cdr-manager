@@ -14,6 +14,7 @@ type Profile struct {
 	Name          string
 	Subscriptions []*Subscription
 	Casts         []*Cast
+	Disks         []*Disk
 }
 
 func NewProfile(name string) (*Profile, error) {

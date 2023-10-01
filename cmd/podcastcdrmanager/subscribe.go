@@ -64,7 +64,7 @@ func RunSubscribe(remainingArgs []string, mc *MainConfig) error {
 		section = RunSubscribeHelp
 		fmt.Printf("Failed to find %s\n", fs.Arg(1))
 	}
-	if err := section(append([]string{fs.Arg(0)}, fs.Args()[2:]...), mc, sc); err != nil {
+	if err := section(append([]string{fs.Arg(0)}, fs.Args()[min(2, len(fs.Args())):]...), mc, sc); err != nil {
 		return fmt.Errorf("running help: %s", err)
 	}
 	return nil
