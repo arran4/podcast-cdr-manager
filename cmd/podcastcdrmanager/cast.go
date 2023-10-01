@@ -55,12 +55,12 @@ func RunCast(remainingArgs []string, mc *MainConfig) error {
 			return fmt.Errorf("running help: %s", err)
 		}
 	}
-	section, ok := CastsSections[fs.Arg(1)]
+	section, ok := CastsSections[fs.Arg(0)]
 	if !ok {
 		section = RunCastHelp
-		fmt.Printf("Failed to find %s\n", fs.Arg(1))
+		fmt.Printf("Failed to find %s\n", fs.Arg(0))
 	}
-	if err := section(append([]string{fs.Arg(0)}, fs.Args()[min(2, len(fs.Args())):]...), mc, sc); err != nil {
+	if err := section(SkipFirstN(fs.Args(), 1), mc, sc); err != nil {
 		return fmt.Errorf("running help: %s", err)
 	}
 	return nil

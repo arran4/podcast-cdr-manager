@@ -40,7 +40,7 @@ var (
 			}
 			for i, sub := range subs {
 				fmt.Printf("% 3d %30s %s\n", i, sub.Name, sub.Url)
-				n, err := profile.UpdateSubscription(sub)
+				n, err := profile.RefreshSubscription(sub)
 				if err != nil {
 					return fmt.Errorf("updating subscription: %w", err)
 				}
@@ -77,12 +77,12 @@ func RunSubscription(remainingArgs []string, mc *MainConfig) error {
 			return fmt.Errorf("running help: %s", err)
 		}
 	}
-	section, ok := SubscriptionsSections[fs.Arg(1)]
+	section, ok := SubscriptionsSections[fs.Arg(0)]
 	if !ok {
 		section = RunSubscriptionHelp
-		fmt.Printf("Failed to find %s\n", fs.Arg(1))
+		fmt.Printf("Failed to find %s\n", fs.Arg(0))
 	}
-	if err := section(append([]string{fs.Arg(0)}, fs.Args()[min(2, len(fs.Args())):]...), mc, sc); err != nil {
+	if err := section(SkipFirstN(fs.Args(), 1), mc, sc); err != nil {
 		return fmt.Errorf("running help: %s", err)
 	}
 	return nil

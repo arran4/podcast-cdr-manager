@@ -13,6 +13,9 @@ type MainConfig struct {
 type MainCliPoint func(remainingArgs []string, mc *MainConfig) error
 
 var (
+	version      = "dev"
+	commit       = "none"
+	date         = "unknown"
 	MainSections = map[string]MainCliPoint{
 		"subscribe":     RunSubscribe,
 		"subscription":  RunSubscription,
@@ -45,7 +48,11 @@ func RunHelp(args []string, mc *MainConfig) error {
 
 func main() {
 	fs := flag.NewFlagSet("profile", flag.ExitOnError)
-	profile := fs.String("profile", "default", "The profile/user")
+	defaultProfile := "default"
+	if version == "dev" {
+		defaultProfile = defaultProfile + "-dev"
+	}
+	profile := fs.String("profile", defaultProfile, "The profile/user")
 	help := fs.Bool("help", false, "")
 	if err := fs.Parse(os.Args); err != nil {
 		fmt.Printf("Error formatting args: %s\n", err)
@@ -68,7 +75,7 @@ func main() {
 		section = RunHelp
 		fmt.Printf("Failed to find %s\n", fs.Arg(1))
 	}
-	if err := section(append([]string{fs.Arg(0)}, fs.Args()[min(2, len(fs.Args())):]...), mc); err != nil {
+	if err := section(SkipFirstN(fs.Args(), 2), mc); err != nil {
 		fmt.Printf("Error running %s: %s\n", flag.Arg(1), err)
 		os.Exit(-1)
 		return

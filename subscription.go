@@ -1,6 +1,7 @@
 package podcast_cdr_manager
 
 import (
+	"fmt"
 	"github.com/mmcdole/gofeed"
 	"sort"
 	"strconv"
@@ -17,6 +18,13 @@ func (p *Profile) ListSubscriptions() ([]*Subscription, error) {
 	return p.Subscriptions, nil
 }
 
+func (p *Profile) GetSubByIndex(index int) (*Subscription, error) {
+	if len(p.Subscriptions) <= index {
+		return nil, fmt.Errorf("no such subscription")
+	}
+	return p.Subscriptions[index], nil
+}
+
 func (p *Profile) HasSubscriptionByUrl(url string) bool {
 	for _, s := range p.Subscriptions {
 		if strings.EqualFold(s.Url, url) {
@@ -26,12 +34,12 @@ func (p *Profile) HasSubscriptionByUrl(url string) bool {
 	return false
 }
 
-func (p *Profile) UpdateSubscription(sub *Subscription) (int, error) {
+func (p *Profile) RefreshSubscription(sub *Subscription) (int, error) {
 	feed, err := p.GetFeed(sub.Url)
 	if err != nil {
 		return 0, err
 	}
-	return p.UpdateSubscriptionWithFeed(sub, feed)
+	return p.RefreshSubscriptionWithFeed(sub, feed)
 }
 
 type ByPubDate []*gofeed.Item
@@ -54,7 +62,7 @@ func (b ByPubDate) Swap(i, j int) {
 	b[i], b[j] = b[j], b[i]
 }
 
-func (p *Profile) UpdateSubscriptionWithFeed(sub *Subscription, feed *gofeed.Feed) (int, error) {
+func (p *Profile) RefreshSubscriptionWithFeed(sub *Subscription, feed *gofeed.Feed) (int, error) {
 	existingItemMap := map[string]*Cast{}
 	for _, cast := range p.Casts {
 		existingItemMap[cast.GUID] = cast
@@ -87,7 +95,7 @@ func (p *Profile) UpdateSubscriptionWithFeed(sub *Subscription, feed *gofeed.Fee
 			Link:            item.Link,
 			MpegLink:        mpegLink,
 			GUID:            item.GUID,
-			Size:            size,
+			SizeBytes:       size,
 			PubDate:         item.PublishedParsed,
 			SkippedDate:     nil,
 		})

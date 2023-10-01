@@ -15,6 +15,7 @@ var (
 	DisksSections = map[string]DisksCliPoint{
 		"help": RunDiskHelp,
 		"":     RunDiskHelp,
+		"next": RunDiskNext,
 		"list": func(remainingArgs []string, mc *MainConfig, sc *DisksConfig) error {
 			profile, err := podcast_cdr_manager.OpenProfile(mc.profile)
 			if err != nil {
@@ -30,6 +31,24 @@ var (
 			}
 			return nil
 		},
+		"create": func(remainingArgs []string, mc *MainConfig, sc *DisksConfig) error {
+			fs := flag.NewFlagSet("diskNext", flag.ExitOnError)
+			diskSizeMb := fs.Int("disk-size-mb", 600, "The disk size in MB")
+			profile, err := podcast_cdr_manager.OpenProfile(mc.profile)
+			if err != nil {
+				return fmt.Errorf("opening profile: %w", err)
+			}
+			disk, err := profile.CreateDisk([]string{}, *diskSizeMb)
+			if err != nil {
+				return fmt.Errorf("create disk: %w", err)
+			}
+			if err := profile.Save(); err != nil {
+				return fmt.Errorf("saving profile: %w", err)
+			}
+			fmt.Printf("    %30s %30s %s\n", "Disk filename", "Created Date", "Burnt Date")
+			fmt.Printf("%3s %30s %30s %s\n", "_", fmt.Sprint(disk.CreatedDate), fmt.Sprint(disk.BurntDate), disk.Filename)
+			return nil
+		},
 	}
 )
 
@@ -40,6 +59,8 @@ func RunDiskHelp(args []string, mc *MainConfig, sc *DisksConfig) error {
 	fmt.Printf("\tsections:\n")
 	fmt.Printf("%19s %-20s %-39s\n", "help", "", "This")
 	fmt.Printf("%19s %-20s %-39s\n", "list", "", "List disks")
+	fmt.Printf("%19s %-20s %-39s\n", "next", "", "Plans a new disk")
+	fmt.Printf("%19s %-20s %-39s\n", "create", "[disk-size-mb:600]", "Creates a new disk")
 	return nil
 }
 
@@ -55,13 +76,13 @@ func RunDisk(remainingArgs []string, mc *MainConfig) error {
 			return fmt.Errorf("running help: %s", err)
 		}
 	}
-	section, ok := DisksSections[fs.Arg(1)]
+	section, ok := DisksSections[fs.Arg(0)]
 	if !ok {
 		section = RunDiskHelp
-		fmt.Printf("Failed to find %s\n", fs.Arg(1))
+		fmt.Printf("Failed to find %s\n", fs.Arg(0))
 	}
-	if err := section(append([]string{fs.Arg(0)}, fs.Args()[min(2, len(fs.Args())):]...), mc, sc); err != nil {
-		return fmt.Errorf("running help: %s", err)
+	if err := section(SkipFirstN(fs.Args(), 1), mc, sc); err != nil {
+		return fmt.Errorf("running %s: %s", fs.Arg(0), err)
 	}
 	return nil
 }

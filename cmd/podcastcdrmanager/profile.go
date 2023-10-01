@@ -17,12 +17,17 @@ var (
 		"":     RunProfileHelp,
 		"new": func(remainingArgs []string, mc *MainConfig, sc *ProfileConfig) error {
 			fs := flag.NewFlagSet("profile-new", flag.ExitOnError)
+			force := fs.Bool("force", false, "Forcefully overwrite")
 			if err := fs.Parse(remainingArgs); err != nil {
-				return fmt.Errorf("parsing arguments: %w", err)
+				return fmt.Errorf("formatting args: %s", err)
 			}
-			profile, err := podcast_cdr_manager.NewProfile(fs.Arg(1))
+			fmt.Printf("%#v\n", fs.Args())
+			if *force {
+				fmt.Printf("Force turned on\n")
+			}
+			profile, err := podcast_cdr_manager.NewProfile(fs.Arg(0), *force)
 			if err != nil {
-				return fmt.Errorf("creating profile: %w", err)
+				return fmt.Errorf("creating profile %s: %w", fs.Arg(0), err)
 			}
 			if err := profile.Save(); err != nil {
 				return fmt.Errorf("saving profile: %w", err)
@@ -39,7 +44,7 @@ func RunProfileHelp(args []string, mc *MainConfig, sc *ProfileConfig) error {
 	fmt.Printf("%19s %-20s %-39s\n", "-help", "", "This")
 	fmt.Printf("\tsections:\n")
 	fmt.Printf("%19s %-20s %-39s\n", "help", "", "This")
-	fmt.Printf("%19s %-20s %-39s\n", "new", "<Profile name>", "Creates a new profile")
+	fmt.Printf("%19s %-20s %-39s\n", "new", "[-force:false] <Profile name>", "Creates a new profile")
 	return nil
 }
 
@@ -55,12 +60,12 @@ func RunProfile(remainingArgs []string, mc *MainConfig) error {
 			return fmt.Errorf("running help: %s", err)
 		}
 	}
-	section, ok := ProfileSections[fs.Arg(1)]
+	section, ok := ProfileSections[fs.Arg(0)]
 	if !ok {
 		section = RunProfileHelp
-		fmt.Printf("Failed to find %s\n", fs.Arg(1))
+		fmt.Printf("Failed to find %s\n", fs.Arg(0))
 	}
-	if err := section(append([]string{fs.Arg(0)}, fs.Args()[min(2, len(fs.Args())):]...), mc, sc); err != nil {
+	if err := section(SkipFirstN(fs.Args(), 1), mc, sc); err != nil {
 		return fmt.Errorf("running help: %s", err)
 	}
 	return nil

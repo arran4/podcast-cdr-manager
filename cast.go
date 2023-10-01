@@ -1,6 +1,9 @@
 package podcast_cdr_manager
 
-import "time"
+import (
+	"slices"
+	"time"
+)
 
 type Cast struct {
 	Title           string
@@ -10,7 +13,7 @@ type Cast struct {
 	Link            string
 	MpegLink        string
 	GUID            string
-	Size            *int
+	SizeBytes       *int
 	PubDate         *time.Time
 	DiskName        string
 	SkippedDate     *time.Time
@@ -18,4 +21,10 @@ type Cast struct {
 
 func (p *Profile) ListCasts() ([]*Cast, error) {
 	return p.Casts, nil
+}
+
+func (p *Profile) ListUnassignedCasts() ([]*Cast, error) {
+	return slices.DeleteFunc(slices.Clone(p.Casts), func(cast *Cast) bool {
+		return cast.SkippedDate != nil || cast.DiskName != ""
+	}), nil
 }

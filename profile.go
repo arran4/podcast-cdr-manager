@@ -17,7 +17,7 @@ type Profile struct {
 	Disks         []*Disk
 }
 
-func NewProfile(name string) (*Profile, error) {
+func NewProfile(name string, overwrite bool) (*Profile, error) {
 	if len(name) < 2 {
 		return nil, fmt.Errorf("profile name too short")
 	}
@@ -32,10 +32,10 @@ func NewProfile(name string) (*Profile, error) {
 		return nil, fmt.Errorf("config directory: %w", err)
 	}
 	_, err = os.ReadFile(configFilePath)
-	if err == nil {
+	if err == nil && !overwrite {
 		return nil, fmt.Errorf("profile already exists")
 	}
-	if !errors.Is(err, os.ErrNotExist) {
+	if !errors.Is(err, os.ErrNotExist) && !overwrite {
 		return nil, fmt.Errorf("reading profile data: %w", err)
 	}
 

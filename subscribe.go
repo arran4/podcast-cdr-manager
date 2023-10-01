@@ -20,7 +20,7 @@ func (p *Profile) SubscribeToRss(url string) (int, error) {
 		Type: "rss",
 	}
 	p.Subscriptions = append(p.Subscriptions, sub)
-	return p.UpdateSubscriptionWithFeed(sub, feed)
+	return p.RefreshSubscriptionWithFeed(sub, feed)
 }
 
 func (p *Profile) GetFeed(url string) (*gofeed.Feed, error) {
