@@ -2,6 +2,7 @@ package podcast_cdr_manager
 
 import (
 	_ "embed"
+	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 
 type Disk struct {
 	Filename         string
+	Name             string
 	CreatedDate      *time.Time
 	BurntDate        *time.Time
 	UsedSpaceMb      int
@@ -47,6 +49,13 @@ func (p *Profile) FindFreeDisk() (*Disk, error) {
 	return disks[0], nil
 }
 
+func (p *Profile) GetDiskByIndex(index int) (*Disk, error) {
+	if len(p.Disks) <= index {
+		return nil, fmt.Errorf("no such disk")
+	}
+	return p.Disks[index], nil
+}
+
 func (p *Profile) FindFreeDisks() []*Disk {
 	return slices.DeleteFunc(slices.Clone(p.Disks), func(disk *Disk) bool {
 		return disk.BurntDate != nil || disk.ReadyToBurn != nil
@@ -72,9 +81,18 @@ func createDiskFilename(i int) string {
 	}, "-") + ".iso"
 }
 
+func createDiskIsoName(i int) string {
+	words := strings.Split(wordsContent, "\n")
+	for i, word := range words {
+		words[i] = strings.TrimSpace(word)
+	}
+	return fmt.Sprintf("POD%s%d", strings.ToUpper(words[i]), i)
+}
+
 func (p *Profile) CreateDisk(subscriptionUrlFilter []string, diskSizeMb int) (*Disk, error) {
 	now := time.Now()
 	d := &Disk{
+		Name:             createDiskIsoName(len(p.Disks)),
 		Filename:         createDiskFilename(len(p.Disks)),
 		CreatedDate:      &now,
 		BurntDate:        nil,

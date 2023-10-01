@@ -58,7 +58,7 @@ func DoRunDiskNext(help *bool, fs *flag.FlagSet, mc *MainConfig, dedicatedIndex 
 	}
 	section, ok := DiskNextSections[fs.Arg(0)]
 	if ok {
-		if err := section(SkipFirstN(fs.Args(), 1), mc, sc); err != nil {
+		if err := section(podcast_cdr_manager.SkipFirstN(fs.Args(), 1), mc, sc); err != nil {
 			return fmt.Errorf("running help: %s", err)
 		}
 	}
@@ -111,11 +111,11 @@ func DoRunDiskNext(help *bool, fs *flag.FlagSet, mc *MainConfig, dedicatedIndex 
 		if disk.UsedSpaceMb+castSizeMb >= disk.TotalSpaceMb {
 			now := time.Now()
 			disk.ReadyToBurn = &now
-			fmt.Printf("Ran out of space on %s (%d mb + %d mb / %d mb)\n", disk.Filename, disk.UsedSpaceMb, castSizeMb, disk.TotalSpaceMb)
+			fmt.Printf("Ran out of space on %s (%d mb + %d mb / %d mb) (Meaning it's ready to generate an ISO from)\n", disk.Filename, disk.UsedSpaceMb, castSizeMb, disk.TotalSpaceMb)
 			break
 		}
 		fmt.Printf("Put %s on %s (%d mb + %d mb / %d mb)\n", cast.MpegLink, disk.Filename, disk.UsedSpaceMb, castSizeMb, disk.TotalSpaceMb)
-		cast.DiskName = disk.Filename
+		cast.DiskName = disk.Name
 		// TODO make it get the size some-other way, until then hard fail.
 		disk.UsedSpaceMb += castSizeMb
 		allocations++
@@ -130,12 +130,4 @@ func DoRunDiskNext(help *bool, fs *flag.FlagSet, mc *MainConfig, dedicatedIndex 
 		}
 	}
 	return nil
-}
-
-func SkipFirstN[T any](args []T, i int) []T {
-	m := i
-	if m >= len(args) {
-		m = len(args)
-	}
-	return args[m:]
 }

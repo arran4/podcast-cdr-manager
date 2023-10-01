@@ -78,12 +78,20 @@ func (p *Profile) Save() error {
 	if err != nil {
 		return fmt.Errorf("config directory: %w", err)
 	}
-	b, err := yaml.Marshal(p)
-	if err != nil {
-		return fmt.Errorf("config structure: %w", err)
+	b, err2 := p.ProfileData()
+	if err2 != nil {
+		return err2
 	}
 	if err := os.WriteFile(configFilePath, b, 0644); err != nil {
 		return fmt.Errorf("reading profile data: %w", err)
 	}
 	return nil
+}
+
+func (p *Profile) ProfileData() ([]byte, error) {
+	b, err := yaml.Marshal(p)
+	if err != nil {
+		return nil, fmt.Errorf("profile structure: %w", err)
+	}
+	return b, nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/arran4/podcast-cdr-manager"
 	"os"
 )
 
@@ -75,7 +76,7 @@ func main() {
 		section = RunHelp
 		fmt.Printf("Failed to find %s\n", fs.Arg(1))
 	}
-	if err := section(SkipFirstN(fs.Args(), 2), mc); err != nil {
+	if err := section(podcast_cdr_manager.SkipFirstN(fs.Args(), 2), mc); err != nil {
 		fmt.Printf("Error running %s: %s\n", flag.Arg(1), err)
 		os.Exit(-1)
 		return

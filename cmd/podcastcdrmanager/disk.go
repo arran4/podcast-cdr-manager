@@ -16,6 +16,7 @@ var (
 		"help": RunDiskHelp,
 		"":     RunDiskHelp,
 		"next": RunDiskNext,
+		"iso":  RunIso,
 		"list": func(remainingArgs []string, mc *MainConfig, sc *DisksConfig) error {
 			profile, err := podcast_cdr_manager.OpenProfile(mc.profile)
 			if err != nil {
@@ -61,6 +62,7 @@ func RunDiskHelp(args []string, mc *MainConfig, sc *DisksConfig) error {
 	fmt.Printf("%19s %-20s %-39s\n", "list", "", "List disks")
 	fmt.Printf("%19s %-20s %-39s\n", "next", "", "Plans a new disk")
 	fmt.Printf("%19s %-20s %-39s\n", "create", "[disk-size-mb:600]", "Creates a new disk")
+	fmt.Printf("%19s %-20s %-39s\n", "iso", "", "ISO generation submenu")
 	return nil
 }
 
@@ -81,7 +83,7 @@ func RunDisk(remainingArgs []string, mc *MainConfig) error {
 		section = RunDiskHelp
 		fmt.Printf("Failed to find %s\n", fs.Arg(0))
 	}
-	if err := section(SkipFirstN(fs.Args(), 1), mc, sc); err != nil {
+	if err := section(podcast_cdr_manager.SkipFirstN(fs.Args(), 1), mc, sc); err != nil {
 		return fmt.Errorf("running %s: %s", fs.Arg(0), err)
 	}
 	return nil

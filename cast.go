@@ -28,3 +28,9 @@ func (p *Profile) ListUnassignedCasts() ([]*Cast, error) {
 		return cast.SkippedDate != nil || cast.DiskName != ""
 	}), nil
 }
+
+func (p *Profile) GetCastsByDiskName(diskName string) ([]*Cast, error) {
+	return slices.DeleteFunc(slices.Clone(p.Casts), func(cast *Cast) bool {
+		return cast.DiskName != diskName
+	}), nil
+}

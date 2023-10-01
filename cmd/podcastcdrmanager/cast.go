@@ -60,7 +60,7 @@ func RunCast(remainingArgs []string, mc *MainConfig) error {
 		section = RunCastHelp
 		fmt.Printf("Failed to find %s\n", fs.Arg(0))
 	}
-	if err := section(SkipFirstN(fs.Args(), 1), mc, sc); err != nil {
+	if err := section(podcast_cdr_manager.SkipFirstN(fs.Args(), 1), mc, sc); err != nil {
 		return fmt.Errorf("running help: %s", err)
 	}
 	return nil

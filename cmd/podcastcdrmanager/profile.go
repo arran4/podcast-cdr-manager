@@ -21,10 +21,6 @@ var (
 			if err := fs.Parse(remainingArgs); err != nil {
 				return fmt.Errorf("formatting args: %s", err)
 			}
-			fmt.Printf("%#v\n", fs.Args())
-			if *force {
-				fmt.Printf("Force turned on\n")
-			}
 			profile, err := podcast_cdr_manager.NewProfile(fs.Arg(0), *force)
 			if err != nil {
 				return fmt.Errorf("creating profile %s: %w", fs.Arg(0), err)
@@ -65,7 +61,7 @@ func RunProfile(remainingArgs []string, mc *MainConfig) error {
 		section = RunProfileHelp
 		fmt.Printf("Failed to find %s\n", fs.Arg(0))
 	}
-	if err := section(SkipFirstN(fs.Args(), 1), mc, sc); err != nil {
+	if err := section(podcast_cdr_manager.SkipFirstN(fs.Args(), 1), mc, sc); err != nil {
 		return fmt.Errorf("running help: %s", err)
 	}
 	return nil
