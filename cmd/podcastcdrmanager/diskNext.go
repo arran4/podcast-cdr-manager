@@ -105,6 +105,7 @@ func DoRunDiskNext(help *bool, fs *flag.FlagSet, mc *MainConfig, dedicatedIndex 
 			return !strings.EqualFold(cast.SubscriptionUrl, sub.Url)
 		})
 	}
+	allocations := 0
 	for _, cast := range casts {
 		castSizeMb := int(math.Ceil(float64(*cast.SizeBytes) / 1024.0 / 1024.0))
 		if disk.UsedSpaceMb+castSizeMb >= disk.TotalSpaceMb {
@@ -117,6 +118,11 @@ func DoRunDiskNext(help *bool, fs *flag.FlagSet, mc *MainConfig, dedicatedIndex 
 		cast.DiskName = disk.Filename
 		// TODO make it get the size some-other way, until then hard fail.
 		disk.UsedSpaceMb += castSizeMb
+		allocations++
+	}
+	if allocations == 0 {
+		fmt.Printf("No allocations made, exiting withsout saving\n")
+		return nil
 	}
 	if !*dry {
 		if err := profile.Save(); err != nil {
