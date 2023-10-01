@@ -128,6 +128,8 @@ func DoRunDiskNext(help *bool, fs *flag.FlagSet, mc *MainConfig, dedicatedIndex 
 		if err := profile.Save(); err != nil {
 			return fmt.Errorf("saving profile: %w", err)
 		}
+	} else {
+		fmt.Printf("Dry not not saving to changes to profile\n")
 	}
 	return nil
 }

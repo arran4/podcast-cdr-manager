@@ -6,6 +6,7 @@ import (
 	podcast_cdr_manager "github.com/arran4/podcast-cdr-manager"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 type IsoConfig struct{}
@@ -36,10 +37,15 @@ var (
 			if err := disk.GenerateIso(filepath.Join(*outputDirectory, disk.Filename), *includeData, profile); err != nil {
 				return fmt.Errorf("generating iso: %w", err)
 			}
+			now := time.Now()
+			disk.BurntDate = &now
+			fmt.Printf("Disk marked as burnt")
 			if *dry {
 				if err := profile.Save(); err != nil {
 					return fmt.Errorf("saving profile: %w", err)
 				}
+			} else {
+				fmt.Printf("Dry not not saving to changes to profile\n")
 			}
 			fmt.Printf("ISO generated\n")
 			return nil
