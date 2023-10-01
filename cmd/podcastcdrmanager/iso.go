@@ -39,8 +39,8 @@ var (
 			}
 			now := time.Now()
 			disk.BurntDate = &now
-			fmt.Printf("Disk marked as burnt")
-			if *dry {
+			fmt.Printf("Disk marked as burnt\n")
+			if !*dry {
 				if err := profile.Save(); err != nil {
 					return fmt.Errorf("saving profile: %w", err)
 				}
