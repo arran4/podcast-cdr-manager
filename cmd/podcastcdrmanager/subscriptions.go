@@ -29,6 +29,28 @@ var (
 			}
 			return nil
 		},
+		"refresh": func(remainingArgs []string, mc *MainConfig, sc *SubscriptionsConfig) error {
+			profile, err := podcast_cdr_manager.OpenProfile(mc.profile)
+			if err != nil {
+				return fmt.Errorf("opening profile: %w", err)
+			}
+			subs, err := profile.ListSubscriptions()
+			if err != nil {
+				return fmt.Errorf("getting subscriptions: %w", err)
+			}
+			for i, sub := range subs {
+				fmt.Printf("% 3d %30s %s\n", i, sub.Name, sub.Url)
+				n, err := profile.UpdateSubscription(sub)
+				if err != nil {
+					return fmt.Errorf("updating subscription: %w", err)
+				}
+				fmt.Printf("%d New\n", n)
+			}
+			if err := profile.Save(); err != nil {
+				return fmt.Errorf("saving profile: %w", err)
+			}
+			return nil
+		},
 	}
 )
 
@@ -39,6 +61,7 @@ func RunSubscriptionHelp(args []string, mc *MainConfig, sc *SubscriptionsConfig)
 	fmt.Printf("\tsections:\n")
 	fmt.Printf("%19s %-20s %-39s\n", "help", "", "This")
 	fmt.Printf("%19s %-20s %-39s\n", "list", "", "List subscriptions")
+	fmt.Printf("%19s %-20s %-39s\n", "refresh", "", "Refresh all subscriptions")
 	return nil
 }
 
