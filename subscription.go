@@ -2,6 +2,7 @@ package podcast_cdr_manager
 
 import (
 	"github.com/mmcdole/gofeed"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -33,13 +34,35 @@ func (p *Profile) UpdateSubscription(sub *Subscription) (int, error) {
 	return p.UpdateSubscriptionWithFeed(sub, feed)
 }
 
+type ByPubDate []*gofeed.Item
+
+func (b ByPubDate) Len() int {
+	return len(b)
+}
+
+func (b ByPubDate) Less(i, j int) bool {
+	if b[i].PublishedParsed == nil {
+		return true
+	}
+	if b[j].PublishedParsed == nil {
+		return true
+	}
+	return b[i].PublishedParsed.Before(*b[j].PublishedParsed)
+}
+
+func (b ByPubDate) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
 func (p *Profile) UpdateSubscriptionWithFeed(sub *Subscription, feed *gofeed.Feed) (int, error) {
 	existingItemMap := map[string]*Cast{}
 	for _, cast := range p.Casts {
 		existingItemMap[cast.GUID] = cast
 	}
 	added := 0
-	for _, item := range feed.Items {
+	items := feed.Items
+	sort.Sort(ByPubDate(items))
+	for _, item := range items {
 		if _, found := existingItemMap[item.GUID]; found {
 			continue
 		}
