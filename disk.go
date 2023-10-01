@@ -50,6 +50,9 @@ func (p *Profile) FindFreeDisk() (*Disk, error) {
 }
 
 func (p *Profile) GetDiskByIndex(index int) (*Disk, error) {
+	if 0 > index {
+		return nil, fmt.Errorf("please select a disk")
+	}
 	if len(p.Disks) <= index {
 		return nil, fmt.Errorf("no such disk")
 	}
