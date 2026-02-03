@@ -1,0 +1,16 @@
+Usage: podcast-cdr-manager disk next [flags...]
+
+parent-flag: profile
+-- If you don't specify a section, this creates the disk, use -dedicatedIndex to produce a disk with
+-- only one podcast on it, otherwise it will try fill the disk
+
+Subcommands:
+    help         Print this help message
+    usage        Print this usage message
+
+Flags:
+    --profile string
+    --dedicatedIndex, -1 int   Use the podcast index number at start of column using this makes the podcast dedicated (default: -1)
+    --disk-size-mb int         The disk size in MB (default: 600)
+    --create                   Create disk if not found (default: false)
+    --dry                      When this is true it's a dry run and doesn't save changes (default: true)

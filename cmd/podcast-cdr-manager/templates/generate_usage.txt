@@ -1,0 +1,14 @@
+Usage: podcast-cdr-manager disk iso generate [flags...]
+
+parent-flag: profile
+
+Subcommands:
+    help         Print this help message
+    usage        Print this usage message
+
+Flags:
+    --profile string
+    --dry                 When this is true it's a dry run and doesn't save changes (default: true)
+    --include-data        Include the profile data for backup sake (default: true)
+    --index, -1 int       The chosen disk index number see disk list (default: -1)
+    --output-dir string   Directory to output the ISO (default: .)

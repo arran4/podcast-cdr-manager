@@ -1,0 +1,15 @@
+Usage: podcast-cdr-manager disk iso [flags...] <subcommand>
+
+parent-flag: profile
+
+Subcommands:
+{{if .Recursive}}
+    disk iso generate
+{{else}}
+    generate
+{{end}}
+    help         Print this help message
+    usage        Print this usage message
+
+Flags:
+    --profile string
