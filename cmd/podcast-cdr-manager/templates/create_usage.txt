@@ -1,0 +1,11 @@
+Usage: podcast-cdr-manager disk create [flags...]
+
+parent-flag: profile
+
+Subcommands:
+    help         Print this help message
+    usage        Print this usage message
+
+Flags:
+    --profile string
+    --disk-size-mb int   The disk size in MB (default: 600)

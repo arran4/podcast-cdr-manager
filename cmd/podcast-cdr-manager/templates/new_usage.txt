@@ -1,0 +1,14 @@
+Usage: podcast-cdr-manager profile new [flags...] <name>
+
+parent-flag: profile
+
+Subcommands:
+    help         Print this help message
+    usage        Print this usage message
+
+Flags:
+    --profile string
+    --force            Forcefully overwrite (default: false)
+
+Positional Arguments:
+    name       The profile name

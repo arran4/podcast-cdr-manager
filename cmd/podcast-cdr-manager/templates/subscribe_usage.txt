@@ -1,0 +1,15 @@
+Usage: podcast-cdr-manager subscribe [flags...] <subcommand>
+
+parent-flag: profile
+
+Subcommands:
+{{if .Recursive}}
+    subscribe rss
+{{else}}
+    rss
+{{end}}
+    help         Print this help message
+    usage        Print this usage message
+
+Flags:
+    --profile string

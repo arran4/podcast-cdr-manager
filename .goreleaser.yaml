@@ -6,13 +6,17 @@ builds:
       - linux
       - windows
       - darwin
-    main: ./cmd/podcastcdrmanager
+    main: ./cmd/podcast-cdr-manager
     id: "podcastcdrmanager"
     binary: podcastcdrmanager
     goarch:
       - amd64
       - arm
       - arm64
+    ldflags:
+      - -X github.com/arran4/podcast-cdr-manager/commands.version={{.Version}}
+      - -X github.com/arran4/podcast-cdr-manager/commands.commit={{.Commit}}
+      - -X github.com/arran4/podcast-cdr-manager/commands.date={{.Date}}
 
 archives:
   - format: tar.gz
