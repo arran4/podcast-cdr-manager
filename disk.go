@@ -72,24 +72,39 @@ var (
 
 func createDiskFilename(i int) string {
 	words := strings.Split(wordsContent, "\n")
-	for i, word := range words {
-		words[i] = strings.TrimSpace(word)
+	for j, word := range words {
+		words[j] = strings.TrimSpace(word)
 	}
 	// TODO handle overflow intelligently
 	l := len(words) / 3
+	if l == 0 {
+		return fmt.Sprintf("disk-%d.iso", i)
+	}
+	idx0 := (i%l + (l * ((i / l) % 3))) % len(words)
+	idx1 := (i%l + (l * ((i/l + 1) % 3))) % len(words)
+	idx2 := (i%l + (l * ((i/l + 2) % 3))) % len(words)
+
+	// Ensure we don't end up with identical words if len(words) is small
+	if idx0 == idx1 { idx1 = (idx1 + 1) % len(words) }
+	if idx0 == idx2 || idx1 == idx2 { idx2 = (idx2 + 1) % len(words) }
+	if idx0 == idx2 || idx1 == idx2 { idx2 = (idx2 + 1) % len(words) }
+
 	return strings.Join([]string{
-		words[i%l+(l*(i/l+0))],
-		words[i%l+(l*(i/l+1))],
-		words[i%l+(l*(i/l+2))],
+		words[idx0],
+		words[idx1],
+		words[idx2],
 	}, "-") + ".iso"
 }
 
 func createDiskIsoName(i int) string {
 	words := strings.Split(wordsContent, "\n")
-	for i, word := range words {
-		words[i] = strings.TrimSpace(word)
+	for j, word := range words {
+		words[j] = strings.TrimSpace(word)
 	}
-	return fmt.Sprintf("POD%s%d", strings.ToUpper(words[i]), i)
+	if len(words) == 0 {
+		return fmt.Sprintf("POD%d", i)
+	}
+	return fmt.Sprintf("POD%s%d", strings.ToUpper(words[i%len(words)]), i)
 }
 
 func (p *Profile) CreateDisk(subscriptionUrlFilter []string, diskSizeMb int) (*Disk, error) {
