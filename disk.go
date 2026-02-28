@@ -25,6 +25,9 @@ func (p *Profile) ListDisks() ([]*Disk, error) {
 
 func (p *Profile) FindFreeDisksForSubscription(subscriptionUrl string) []*Disk {
 	return slices.DeleteFunc(p.FindFreeDisks(), func(disk *Disk) bool {
+		if len(disk.FilterPodcastUrl) == 0 {
+			return false
+		}
 		for _, u := range disk.FilterPodcastUrl {
 			if strings.EqualFold(u, subscriptionUrl) {
 				return false
