@@ -82,9 +82,17 @@ func createDiskFilename(i int) string {
 	if l == 0 {
 		return fmt.Sprintf("disk-%d.iso", i)
 	}
-	idx0 := (i%l + (l * ((i / l) % 3))) % len(words)
-	idx1 := (i%l + (l * ((i/l + 1) % 3))) % len(words)
-	idx2 := (i%l + (l * ((i/l + 2) % 3))) % len(words)
+
+	ui := uint(i)
+	if i < 0 {
+		ui = uint(-i)
+	}
+	ul := uint(l)
+	uw := uint(len(words))
+
+	idx0 := int((ui%ul + (ul * ((ui / ul) % 3))) % uw)
+	idx1 := int((ui%ul + (ul * ((ui/ul + 1) % 3))) % uw)
+	idx2 := int((ui%ul + (ul * ((ui/ul + 2) % 3))) % uw)
 
 	// Ensure we don't end up with identical words if len(words) is small
 	if idx0 == idx1 { idx1 = (idx1 + 1) % len(words) }
@@ -97,8 +105,8 @@ func createDiskFilename(i int) string {
 		words[idx2],
 	}, "-")
 
-	if i >= l {
-		return fmt.Sprintf("%s-%d.iso", baseName, i/l)
+	if ui >= ul {
+		return fmt.Sprintf("%s-%d.iso", baseName, ui/ul)
 	}
 	return baseName + ".iso"
 }
@@ -111,7 +119,11 @@ func createDiskIsoName(i int) string {
 	if len(words) == 0 {
 		return fmt.Sprintf("POD%d", i)
 	}
-	return fmt.Sprintf("POD%s%d", strings.ToUpper(words[i%len(words)]), i)
+	ui := uint(i)
+	if i < 0 {
+		ui = uint(-i)
+	}
+	return fmt.Sprintf("POD%s%d", strings.ToUpper(words[ui%uint(len(words))]), i)
 }
 
 func (p *Profile) CreateDisk(subscriptionUrlFilter []string, diskSizeMb int) (*Disk, error) {

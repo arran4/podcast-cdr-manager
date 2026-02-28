@@ -1,4 +1,4 @@
 # TODOs
 
-- In `disk.go:78`: handle overflow intelligently in `createDiskFilename`
-- In `cmd/podcastcdrmanager/diskNext.go:119`: make it get the size some-other way, until then hard fail.
+- In `disk.go`: `createDiskFilename` and `createDiskIsoName` has negative index panics and panics with large inputs causing overflows, fix by using type casting properly.
+- In `cmd/podcastcdrmanager/diskNext.go`: make it get the size some-other way, until then hard fail.
