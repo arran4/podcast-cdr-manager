@@ -49,10 +49,10 @@ func TestDoRunDiskNext_NilSizeBytes(t *testing.T) {
 
 	err = DoRunDiskNext(&help, fs, mc, &dedicatedIndex, &create, &diskSizeMb, &dry)
 	if err == nil {
-		t.Fatalf("Expected an error since example.com/test.mp3 does not exist or doesn't return content length")
+		t.Fatalf("Expected an error when cast size bytes are missing")
 	}
 
-	if !strings.Contains(err.Error(), "failed to get size") {
-		t.Fatalf("Expected error about getting size, got: %v", err)
+	if !strings.Contains(err.Error(), "size bytes missing") {
+		t.Fatalf("Expected hard-fail error about missing size bytes, got: %v", err)
 	}
 }
