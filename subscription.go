@@ -19,6 +19,9 @@ func (p *Profile) ListSubscriptions() ([]*Subscription, error) {
 }
 
 func (p *Profile) GetSubByIndex(index int) (*Subscription, error) {
+	if index < 0 {
+		return nil, fmt.Errorf("no such subscription")
+	}
 	if len(p.Subscriptions) <= index {
 		return nil, fmt.Errorf("no such subscription")
 	}
