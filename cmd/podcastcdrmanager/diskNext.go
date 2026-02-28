@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	podcast_cdr_manager "github.com/arran4/podcast-cdr-manager"
-	"math"
 	"os"
 	"slices"
 	"strings"
@@ -108,13 +107,9 @@ func DoRunDiskNext(help *bool, fs *flag.FlagSet, mc *MainConfig, dedicatedIndex 
 	allocations := 0
 	for _, cast := range casts {
 		if cast.SizeBytes == nil {
-			sizeBytes, err := podcast_cdr_manager.GetContentLength(cast.MpegLink)
-			if err != nil {
-				return fmt.Errorf("failed to get size for %s: %w", cast.MpegLink, err)
-			}
-			cast.SizeBytes = &sizeBytes
+			return fmt.Errorf("size bytes missing for %s: hard fail until disk-next has a non-network size source", cast.MpegLink)
 		}
-		castSizeMb := int(math.Ceil(float64(*cast.SizeBytes) / 1024.0 / 1024.0))
+		castSizeMb := (*cast.SizeBytes + 1024*1024 - 1) / (1024 * 1024)
 		if disk.UsedSpaceMb+castSizeMb >= disk.TotalSpaceMb {
 			now := time.Now()
 			disk.ReadyToBurn = &now
