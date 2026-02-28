@@ -11,12 +11,28 @@ func TestCreateDiskFilename(t *testing.T) {
 	for i := 0; i < 10000; i++ {
 		_ = createDiskFilename(i)
 	}
+
+	// Test negative values
+	_ = createDiskFilename(-1)
+	_ = createDiskFilename(-1000)
+
+	// Test large values
+	_ = createDiskFilename(int(^uint(0) >> 1)) // math.MaxInt
+	_ = createDiskFilename(-int(^uint(0) >> 1) - 1) // math.MinInt
 }
 
 func TestCreateDiskIsoName(t *testing.T) {
 	for i := 0; i < 10000; i++ {
 		_ = createDiskIsoName(i)
 	}
+
+	// Test negative values
+	_ = createDiskIsoName(-1)
+	_ = createDiskIsoName(-1000)
+
+	// Test large values
+	_ = createDiskIsoName(int(^uint(0) >> 1)) // math.MaxInt
+	_ = createDiskIsoName(-int(^uint(0) >> 1) - 1) // math.MinInt
 }
 
 func TestFindFreeDisks(t *testing.T) {
