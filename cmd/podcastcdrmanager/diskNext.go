@@ -116,7 +116,7 @@ func DoRunDiskNext(help *bool, fs *flag.FlagSet, mc *MainConfig, dedicatedIndex 
 		}
 		fmt.Printf("Put %s on %s (%d mb + %d mb / %d mb)\n", cast.MpegLink, disk.Filename, disk.UsedSpaceMb, castSizeMb, disk.TotalSpaceMb)
 		cast.DiskName = disk.Name
-		// TODO make it get the size some-other way, until then hard fail.
+		// TODO: make it get the size some-other way, until then hard fail.
 		disk.UsedSpaceMb += castSizeMb
 		allocations++
 	}
