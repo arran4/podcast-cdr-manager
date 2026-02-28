@@ -107,6 +107,13 @@ func DoRunDiskNext(help *bool, fs *flag.FlagSet, mc *MainConfig, dedicatedIndex 
 	}
 	allocations := 0
 	for _, cast := range casts {
+		if cast.SizeBytes == nil {
+			sizeBytes, err := podcast_cdr_manager.GetContentLength(cast.MpegLink)
+			if err != nil {
+				return fmt.Errorf("failed to get size for %s: %w", cast.MpegLink, err)
+			}
+			cast.SizeBytes = &sizeBytes
+		}
 		castSizeMb := int(math.Ceil(float64(*cast.SizeBytes) / 1024.0 / 1024.0))
 		if disk.UsedSpaceMb+castSizeMb >= disk.TotalSpaceMb {
 			now := time.Now()
@@ -116,7 +123,6 @@ func DoRunDiskNext(help *bool, fs *flag.FlagSet, mc *MainConfig, dedicatedIndex 
 		}
 		fmt.Printf("Put %s on %s (%d mb + %d mb / %d mb)\n", cast.MpegLink, disk.Filename, disk.UsedSpaceMb, castSizeMb, disk.TotalSpaceMb)
 		cast.DiskName = disk.Name
-		// TODO: make it get the size some-other way, until then hard fail.
 		disk.UsedSpaceMb += castSizeMb
 		allocations++
 	}

@@ -78,7 +78,6 @@ func createDiskFilename(i int) string {
 	for j, word := range words {
 		words[j] = strings.TrimSpace(word)
 	}
-	// TODO handle overflow intelligently
 	l := len(words) / 3
 	if l == 0 {
 		return fmt.Sprintf("disk-%d.iso", i)
@@ -92,11 +91,16 @@ func createDiskFilename(i int) string {
 	if idx0 == idx2 || idx1 == idx2 { idx2 = (idx2 + 1) % len(words) }
 	if idx0 == idx2 || idx1 == idx2 { idx2 = (idx2 + 1) % len(words) }
 
-	return strings.Join([]string{
+	baseName := strings.Join([]string{
 		words[idx0],
 		words[idx1],
 		words[idx2],
-	}, "-") + ".iso"
+	}, "-")
+
+	if i >= l {
+		return fmt.Sprintf("%s-%d.iso", baseName, i/l)
+	}
+	return baseName + ".iso"
 }
 
 func createDiskIsoName(i int) string {
