@@ -51,5 +51,15 @@ nfpms:
     section: default
     priority: extra
 
+brews:
+  - repository:
+      owner: arran4
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+      token_type: "github"
+      pull_request:
+        enabled: true
+        draft: false
+
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj
