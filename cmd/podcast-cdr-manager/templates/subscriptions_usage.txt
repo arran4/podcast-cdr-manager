@@ -1,0 +1,17 @@
+Usage: podcast-cdr-manager subscriptions [flags...] <subcommand>
+
+parent-flag: profile
+
+Subcommands:
+{{if .Recursive}}
+    subscriptions list-subs
+    subscriptions refresh
+{{else}}
+    list-subs
+    refresh
+{{end}}
+    help         Print this help message
+    usage        Print this usage message
+
+Flags:
+    --profile string

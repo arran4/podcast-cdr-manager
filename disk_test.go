@@ -17,8 +17,8 @@ func TestCreateDiskFilename(t *testing.T) {
 	_ = createDiskFilename(-1000)
 
 	// Test large values
-	_ = createDiskFilename(int(^uint(0) >> 1)) // math.MaxInt
-	_ = createDiskFilename(-int(^uint(0) >> 1) - 1) // math.MinInt
+	_ = createDiskFilename(int(^uint(0) >> 1))    // math.MaxInt
+	_ = createDiskFilename(-int(^uint(0)>>1) - 1) // math.MinInt
 }
 
 func TestCreateDiskIsoName(t *testing.T) {
@@ -31,15 +31,15 @@ func TestCreateDiskIsoName(t *testing.T) {
 	_ = createDiskIsoName(-1000)
 
 	// Test large values
-	_ = createDiskIsoName(int(^uint(0) >> 1)) // math.MaxInt
-	_ = createDiskIsoName(-int(^uint(0) >> 1) - 1) // math.MinInt
+	_ = createDiskIsoName(int(^uint(0) >> 1))    // math.MaxInt
+	_ = createDiskIsoName(-int(^uint(0)>>1) - 1) // math.MinInt
 }
 
 func TestFindFreeDisks(t *testing.T) {
 	p := &Profile{
 		Disks: []*Disk{
 			{Name: "disk1"}, // free
-			{Name: "disk2", BurntDate: new(time.Time)}, // burnt
+			{Name: "disk2", BurntDate: new(time.Time)},   // burnt
 			{Name: "disk3", ReadyToBurn: new(time.Time)}, // ready to burn
 		},
 	}

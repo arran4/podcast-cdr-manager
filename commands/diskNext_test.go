@@ -1,7 +1,6 @@
-package main
+package commands
 
 import (
-	"flag"
 	"os"
 	"testing"
 	"strings"
@@ -10,7 +9,7 @@ import (
 	"github.com/adrg/xdg"
 )
 
-func TestDoRunDiskNext_NilSizeBytes(t *testing.T) {
+func TestDiskNext_NilSizeBytes(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "podcast-test")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -35,19 +34,12 @@ func TestDoRunDiskNext_NilSizeBytes(t *testing.T) {
 		t.Fatalf("failed to save profile: %v", err)
 	}
 
-	mc := &MainConfig{
-		profile: profileName,
-	}
-
-	fs := flag.NewFlagSet("test", flag.ContinueOnError)
-
-	help := false
 	dedicatedIndex := -1
 	create := true
 	diskSizeMb := 600
 	dry := false
 
-	err = DoRunDiskNext(&help, fs, mc, &dedicatedIndex, &create, &diskSizeMb, &dry)
+	err = DiskNext(profileName, dedicatedIndex, diskSizeMb, create, dry)
 	if err == nil {
 		t.Fatalf("Expected an error when cast size bytes are missing")
 	}

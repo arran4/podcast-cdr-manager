@@ -1,0 +1,13 @@
+Usage: podcast-cdr-manager subscribe rss [flags...] <url>
+
+parent-flag: profile
+
+Subcommands:
+    help         Print this help message
+    usage        Print this usage message
+
+Flags:
+    --profile string
+
+Positional Arguments:
+    url        The RSS URL
