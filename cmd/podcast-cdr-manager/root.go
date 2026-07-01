@@ -149,6 +149,8 @@ func (c *RootCmd) Execute(args []string) error {
 	if len(remainingArgs) > 0 {
 		if cmd, ok := c.Commands[remainingArgs[0]]; ok {
 			return cmd.Execute(remainingArgs[1:])
+		} else {
+			return NewUserError(fmt.Errorf("unknown command: %s", remainingArgs[0]), "invalid command")
 		}
 	}
 

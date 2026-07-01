@@ -14,6 +14,9 @@ func PodcastCdrManager(profile string) {
 }
 
 func GetProfile(p string) string {
+	if p == "" {
+		p = "default"
+	}
 	if p == "default" && version == "dev" {
 		return "default-dev"
 	}
