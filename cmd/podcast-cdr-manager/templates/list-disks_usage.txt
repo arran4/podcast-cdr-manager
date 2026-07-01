@@ -1,0 +1,10 @@
+Usage: podcast-cdr-manager disk list-disks [flags...]
+
+parent-flag: profile
+
+Subcommands:
+    help         Print this help message
+    usage        Print this usage message
+
+Flags:
+    --profile string

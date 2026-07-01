@@ -95,9 +95,15 @@ func createDiskFilename(i int) string {
 	idx2 := int((ui%ul + (ul * ((ui/ul + 2) % 3))) % uw)
 
 	// Ensure we don't end up with identical words if len(words) is small
-	if idx0 == idx1 { idx1 = (idx1 + 1) % len(words) }
-	if idx0 == idx2 || idx1 == idx2 { idx2 = (idx2 + 1) % len(words) }
-	if idx0 == idx2 || idx1 == idx2 { idx2 = (idx2 + 1) % len(words) }
+	if idx0 == idx1 {
+		idx1 = (idx1 + 1) % len(words)
+	}
+	if idx0 == idx2 || idx1 == idx2 {
+		idx2 = (idx2 + 1) % len(words)
+	}
+	if idx0 == idx2 || idx1 == idx2 {
+		idx2 = (idx2 + 1) % len(words)
+	}
 
 	baseName := strings.Join([]string{
 		words[idx0],
