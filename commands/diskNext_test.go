@@ -2,11 +2,11 @@ package commands
 
 import (
 	"os"
-	"testing"
 	"strings"
+	"testing"
 
-	podcast_cdr_manager "github.com/arran4/podcast-cdr-manager"
 	"github.com/adrg/xdg"
+	podcast_cdr_manager "github.com/arran4/podcast-cdr-manager"
 )
 
 func TestDiskNext_NilSizeBytes(t *testing.T) {
