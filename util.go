@@ -19,7 +19,9 @@ func GetContentLength(url string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("http head request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
