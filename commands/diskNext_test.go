@@ -2,11 +2,11 @@ package commands
 
 import (
 	"os"
-	"testing"
 	"strings"
+	"testing"
 
-	podcast_cdr_manager "github.com/arran4/podcast-cdr-manager"
 	"github.com/adrg/xdg"
+	podcast_cdr_manager "github.com/arran4/podcast-cdr-manager"
 )
 
 func TestDiskNext_NilSizeBytes(t *testing.T) {
@@ -14,7 +14,9 @@ func TestDiskNext_NilSizeBytes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		_ = os.RemoveAll(tempDir)
+	}()
 
 	profileName := "test_profile"
 	xdg.ConfigHome = tempDir

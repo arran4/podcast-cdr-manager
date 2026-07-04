@@ -2,8 +2,6 @@ package commands
 
 var (
 	version = "dev"
-	commit  = "none"
-	date    = "unknown"
 )
 
 // PodcastCdrManager is a subcommand `podcast-cdr-manager`
