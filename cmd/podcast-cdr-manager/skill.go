@@ -11,36 +11,36 @@ import (
 	"github.com/arran4/podcast-cdr-manager/commands"
 )
 
-var _ Cmd = (*Subscribe)(nil)
+var _ Cmd = (*Skill)(nil)
 
-type Subscribe struct {
+type Skill struct {
 	*RootCmd
 	Flags         *flag.FlagSet
 	profile       string
 	SubCommands   map[string]Cmd
-	CommandAction func(c *Subscribe) error
+	CommandAction func(c *Skill) error
 }
 
-type UsageDataSubscribe struct {
-	*Subscribe
+type UsageDataSkill struct {
+	*Skill
 	Recursive bool
 }
 
-func (c *Subscribe) Usage() {
-	err := executeUsage(os.Stderr, "subscribe_usage.txt", UsageDataSubscribe{c, false})
+func (c *Skill) Usage() {
+	err := executeUsage(os.Stderr, "skill_usage.txt", UsageDataSkill{c, false})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating usage: %s\n", err)
 	}
 }
 
-func (c *Subscribe) UsageRecursive() {
-	err := executeUsage(os.Stderr, "subscribe_usage.txt", UsageDataSubscribe{c, true})
+func (c *Skill) UsageRecursive() {
+	err := executeUsage(os.Stderr, "skill_usage.txt", UsageDataSkill{c, true})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating usage: %s\n", err)
 	}
 }
 
-func (c *Subscribe) Execute(args []string) error {
+func (c *Skill) Execute(args []string) error {
 	if len(args) > 0 {
 		if cmd, ok := c.SubCommands[args[0]]; ok {
 			return cmd.Execute(args[1:])
@@ -85,7 +85,7 @@ func (c *Subscribe) Execute(args []string) error {
 
 	if c.CommandAction != nil {
 		if err := c.CommandAction(c); err != nil {
-			return fmt.Errorf("subscribe failed: %w", err)
+			return fmt.Errorf("skill failed: %w", err)
 		}
 	} else {
 		c.Usage()
@@ -94,9 +94,9 @@ func (c *Subscribe) Execute(args []string) error {
 	return nil
 }
 
-func (c *RootCmd) NewSubscribe() *Subscribe {
-	set := flag.NewFlagSet("subscribe", flag.ContinueOnError)
-	v := &Subscribe{
+func (c *RootCmd) NewSkill() *Skill {
+	set := flag.NewFlagSet("skill", flag.ContinueOnError)
+	v := &Skill{
 		RootCmd:     c,
 		Flags:       set,
 		SubCommands: make(map[string]Cmd),
@@ -105,13 +105,21 @@ func (c *RootCmd) NewSubscribe() *Subscribe {
 	set.StringVar(&v.profile, "profile", "", "TODO: Add usage text")
 	set.Usage = v.Usage
 
-	v.CommandAction = func(c *Subscribe) error {
+	v.CommandAction = func(c *Skill) error {
 
-		commands.Subscribe(c.profile)
+		commands.Skill(c.profile)
 		return nil
 	}
 
-	v.SubCommands["rss"] = v.NewRss()
+	v.SubCommands["inspect"] = v.NewInspect()
+
+	v.SubCommands["install"] = v.NewInstall()
+
+	v.SubCommands["list"] = v.NewList()
+
+	v.SubCommands["remove"] = v.NewRemove()
+
+	v.SubCommands["update"] = v.NewUpdate()
 
 	v.SubCommands["help"] = &InternalCommand{
 		Exec: func(args []string) error {

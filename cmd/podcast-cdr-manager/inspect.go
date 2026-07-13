@@ -13,44 +13,49 @@ import (
 	"github.com/arran4/podcast-cdr-manager/commands"
 )
 
-var _ Cmd = (*ListDisks)(nil)
+var _ Cmd = (*Inspect)(nil)
 
-type ListDisks struct {
-	*Disk
+type Inspect struct {
+	*Skill
 	Flags         *flag.FlagSet
 	profile       string
+	scope         string
+	agent         string
+	name          string
 	SubCommands   map[string]Cmd
-	CommandAction func(c *ListDisks) error
+	CommandAction func(c *Inspect) error
 }
 
-type UsageDataListDisks struct {
-	*ListDisks
+type UsageDataInspect struct {
+	*Inspect
 	Recursive bool
 }
 
-func (c *ListDisks) Usage() {
-	err := executeUsage(os.Stderr, "list-disks_usage.txt", UsageDataListDisks{c, false})
+func (c *Inspect) Usage() {
+	err := executeUsage(os.Stderr, "inspect_usage.txt", UsageDataInspect{c, false})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating usage: %s\n", err)
 	}
 }
 
-func (c *ListDisks) UsageRecursive() {
-	err := executeUsage(os.Stderr, "list-disks_usage.txt", UsageDataListDisks{c, true})
+func (c *Inspect) UsageRecursive() {
+	err := executeUsage(os.Stderr, "inspect_usage.txt", UsageDataInspect{c, true})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating usage: %s\n", err)
 	}
 }
 
-func (c *ListDisks) Execute(args []string) error {
+func (c *Inspect) Execute(args []string) error {
 	if len(args) > 0 {
 		if cmd, ok := c.SubCommands[args[0]]; ok {
 			return cmd.Execute(args[1:])
 		}
 	}
+	var remainingArgs []string
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if arg == "--" {
+			remainingArgs = append(remainingArgs, args[i+1:]...)
 			break
 		}
 		if strings.HasPrefix(arg, "-") && arg != "-" {
@@ -76,18 +81,53 @@ func (c *ListDisks) Execute(args []string) error {
 					}
 				}
 				c.profile = value
+
+			case "scope":
+				if !hasValue {
+					if i+1 < len(args) {
+						value = args[i+1]
+						i++
+					} else {
+						return fmt.Errorf("flag %s requires a value", name)
+					}
+				}
+				c.scope = value
+
+			case "agent":
+				if !hasValue {
+					if i+1 < len(args) {
+						value = args[i+1]
+						i++
+					} else {
+						return fmt.Errorf("flag %s requires a value", name)
+					}
+				}
+				c.agent = value
 			case "help", "h":
 				c.Usage()
 				return nil
 			default:
 				return fmt.Errorf("unknown flag: %s", name)
 			}
+		} else {
+			remainingArgs = append(remainingArgs, arg)
+		}
+	}
+	if len(remainingArgs) < 1 {
+		return fmt.Errorf("expected at least 1 positional arguments, got %d", len(remainingArgs))
+	}
+	// Handle positional argument name
+	{
+		argIndex := 0
+		if argIndex >= 0 && argIndex < len(remainingArgs) {
+			argVal := remainingArgs[argIndex]
+			c.name = argVal
 		}
 	}
 
 	if c.CommandAction != nil {
 		if err := c.CommandAction(c); err != nil {
-			return fmt.Errorf("list-disks failed: %w", err)
+			return fmt.Errorf("inspect failed: %w", err)
 		}
 	} else {
 		c.Usage()
@@ -96,20 +136,24 @@ func (c *ListDisks) Execute(args []string) error {
 	return nil
 }
 
-func (c *Disk) NewListDisks() *ListDisks {
-	set := flag.NewFlagSet("list-disks", flag.ContinueOnError)
-	v := &ListDisks{
-		Disk:        c,
+func (c *Skill) NewInspect() *Inspect {
+	set := flag.NewFlagSet("inspect", flag.ContinueOnError)
+	v := &Inspect{
+		Skill:       c,
 		Flags:       set,
 		SubCommands: make(map[string]Cmd),
 	}
 
 	set.StringVar(&v.profile, "profile", "", "TODO: Add usage text")
+
+	set.StringVar(&v.scope, "scope", "user", "Scope of installation user or project")
+
+	set.StringVar(&v.agent, "agent", "", "Target agent codex claude copilot cursor")
 	set.Usage = v.Usage
 
-	v.CommandAction = func(c *ListDisks) error {
+	v.CommandAction = func(c *Inspect) error {
 
-		err := commands.DiskList(c.profile)
+		err := commands.SkillInspect(c.profile, c.scope, c.agent, c.name)
 		if err != nil {
 			if errors.Is(err, cmd.ErrPrintHelp) {
 				c.Usage()
@@ -122,7 +166,7 @@ func (c *Disk) NewListDisks() *ListDisks {
 			if e, ok := err.(*cmd.ErrExitCode); ok {
 				return e
 			}
-			return fmt.Errorf("list-disks failed: %w", err)
+			return fmt.Errorf("inspect failed: %w", err)
 		}
 		return nil
 	}

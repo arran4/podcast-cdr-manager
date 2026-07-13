@@ -6,41 +6,46 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
+	"errors"
+	"github.com/arran4/podcast-cdr-manager/cmd"
 	"github.com/arran4/podcast-cdr-manager/commands"
 )
 
-var _ Cmd = (*Subscribe)(nil)
+var _ Cmd = (*List)(nil)
 
-type Subscribe struct {
-	*RootCmd
+type List struct {
+	*Skill
 	Flags         *flag.FlagSet
 	profile       string
+	jsonOut       bool
+	scope         string
 	SubCommands   map[string]Cmd
-	CommandAction func(c *Subscribe) error
+	CommandAction func(c *List) error
 }
 
-type UsageDataSubscribe struct {
-	*Subscribe
+type UsageDataList struct {
+	*List
 	Recursive bool
 }
 
-func (c *Subscribe) Usage() {
-	err := executeUsage(os.Stderr, "subscribe_usage.txt", UsageDataSubscribe{c, false})
+func (c *List) Usage() {
+	err := executeUsage(os.Stderr, "list_usage.txt", UsageDataList{c, false})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating usage: %s\n", err)
 	}
 }
 
-func (c *Subscribe) UsageRecursive() {
-	err := executeUsage(os.Stderr, "subscribe_usage.txt", UsageDataSubscribe{c, true})
+func (c *List) UsageRecursive() {
+	err := executeUsage(os.Stderr, "list_usage.txt", UsageDataList{c, true})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating usage: %s\n", err)
 	}
 }
 
-func (c *Subscribe) Execute(args []string) error {
+func (c *List) Execute(args []string) error {
 	if len(args) > 0 {
 		if cmd, ok := c.SubCommands[args[0]]; ok {
 			return cmd.Execute(args[1:])
@@ -74,6 +79,28 @@ func (c *Subscribe) Execute(args []string) error {
 					}
 				}
 				c.profile = value
+
+			case "jsonOut", "json":
+				if hasValue {
+					b, err := strconv.ParseBool(value)
+					if err != nil {
+						return fmt.Errorf("invalid boolean value for flag %s: %s", name, value)
+					}
+					c.jsonOut = b
+				} else {
+					c.jsonOut = true
+				}
+
+			case "scope":
+				if !hasValue {
+					if i+1 < len(args) {
+						value = args[i+1]
+						i++
+					} else {
+						return fmt.Errorf("flag %s requires a value", name)
+					}
+				}
+				c.scope = value
 			case "help", "h":
 				c.Usage()
 				return nil
@@ -85,7 +112,7 @@ func (c *Subscribe) Execute(args []string) error {
 
 	if c.CommandAction != nil {
 		if err := c.CommandAction(c); err != nil {
-			return fmt.Errorf("subscribe failed: %w", err)
+			return fmt.Errorf("list failed: %w", err)
 		}
 	} else {
 		c.Usage()
@@ -94,24 +121,40 @@ func (c *Subscribe) Execute(args []string) error {
 	return nil
 }
 
-func (c *RootCmd) NewSubscribe() *Subscribe {
-	set := flag.NewFlagSet("subscribe", flag.ContinueOnError)
-	v := &Subscribe{
-		RootCmd:     c,
+func (c *Skill) NewList() *List {
+	set := flag.NewFlagSet("list", flag.ContinueOnError)
+	v := &List{
+		Skill:       c,
 		Flags:       set,
 		SubCommands: make(map[string]Cmd),
 	}
 
 	set.StringVar(&v.profile, "profile", "", "TODO: Add usage text")
+
+	set.BoolVar(&v.jsonOut, "json", false, "Output in JSON format")
+
+	set.StringVar(&v.scope, "scope", "user", "Scope of installation user or project")
 	set.Usage = v.Usage
 
-	v.CommandAction = func(c *Subscribe) error {
+	v.CommandAction = func(c *List) error {
 
-		commands.Subscribe(c.profile)
+		err := commands.SkillList(c.profile, c.jsonOut, c.scope)
+		if err != nil {
+			if errors.Is(err, cmd.ErrPrintHelp) {
+				c.Usage()
+				return nil
+			}
+			if errors.Is(err, cmd.ErrHelp) {
+				fmt.Fprintf(os.Stderr, "Use '%s help' for more information.\n", os.Args[0])
+				return nil
+			}
+			if e, ok := err.(*cmd.ErrExitCode); ok {
+				return e
+			}
+			return fmt.Errorf("list failed: %w", err)
+		}
 		return nil
 	}
-
-	v.SubCommands["rss"] = v.NewRss()
 
 	v.SubCommands["help"] = &InternalCommand{
 		Exec: func(args []string) error {

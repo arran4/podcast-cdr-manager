@@ -14,48 +14,51 @@ import (
 	"github.com/arran4/podcast-cdr-manager/commands"
 )
 
-var _ Cmd = (*Generate)(nil)
+var _ Cmd = (*Update)(nil)
 
-type Generate struct {
-	*Iso
-	Flags           *flag.FlagSet
-	profile         string
-	dry             bool
-	includeData     bool
-	index           int
-	outputDirectory string
-	SubCommands     map[string]Cmd
-	CommandAction   func(c *Generate) error
+type Update struct {
+	*Skill
+	Flags         *flag.FlagSet
+	profile       string
+	all           bool
+	force         bool
+	scope         string
+	agent         string
+	name          string
+	SubCommands   map[string]Cmd
+	CommandAction func(c *Update) error
 }
 
-type UsageDataGenerate struct {
-	*Generate
+type UsageDataUpdate struct {
+	*Update
 	Recursive bool
 }
 
-func (c *Generate) Usage() {
-	err := executeUsage(os.Stderr, "generate_usage.txt", UsageDataGenerate{c, false})
+func (c *Update) Usage() {
+	err := executeUsage(os.Stderr, "update_usage.txt", UsageDataUpdate{c, false})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating usage: %s\n", err)
 	}
 }
 
-func (c *Generate) UsageRecursive() {
-	err := executeUsage(os.Stderr, "generate_usage.txt", UsageDataGenerate{c, true})
+func (c *Update) UsageRecursive() {
+	err := executeUsage(os.Stderr, "update_usage.txt", UsageDataUpdate{c, true})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating usage: %s\n", err)
 	}
 }
 
-func (c *Generate) Execute(args []string) error {
+func (c *Update) Execute(args []string) error {
 	if len(args) > 0 {
 		if cmd, ok := c.SubCommands[args[0]]; ok {
 			return cmd.Execute(args[1:])
 		}
 	}
+	var remainingArgs []string
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if arg == "--" {
+			remainingArgs = append(remainingArgs, args[i+1:]...)
 			break
 		}
 		if strings.HasPrefix(arg, "-") && arg != "-" {
@@ -82,29 +85,29 @@ func (c *Generate) Execute(args []string) error {
 				}
 				c.profile = value
 
-			case "dry":
+			case "all":
 				if hasValue {
 					b, err := strconv.ParseBool(value)
 					if err != nil {
 						return fmt.Errorf("invalid boolean value for flag %s: %s", name, value)
 					}
-					c.dry = b
+					c.all = b
 				} else {
-					c.dry = true
+					c.all = true
 				}
 
-			case "includeData", "include-data":
+			case "force":
 				if hasValue {
 					b, err := strconv.ParseBool(value)
 					if err != nil {
 						return fmt.Errorf("invalid boolean value for flag %s: %s", name, value)
 					}
-					c.includeData = b
+					c.force = b
 				} else {
-					c.includeData = true
+					c.force = true
 				}
 
-			case "index", "1":
+			case "scope":
 				if !hasValue {
 					if i+1 < len(args) {
 						value = args[i+1]
@@ -113,13 +116,9 @@ func (c *Generate) Execute(args []string) error {
 						return fmt.Errorf("flag %s requires a value", name)
 					}
 				}
-				iv, err := strconv.Atoi(value)
-				if err != nil {
-					return fmt.Errorf("invalid integer value for flag %s: %s", name, value)
-				}
-				c.index = iv
+				c.scope = value
 
-			case "outputDirectory", "output-dir":
+			case "agent":
 				if !hasValue {
 					if i+1 < len(args) {
 						value = args[i+1]
@@ -128,19 +127,32 @@ func (c *Generate) Execute(args []string) error {
 						return fmt.Errorf("flag %s requires a value", name)
 					}
 				}
-				c.outputDirectory = value
+				c.agent = value
 			case "help", "h":
 				c.Usage()
 				return nil
 			default:
 				return fmt.Errorf("unknown flag: %s", name)
 			}
+		} else {
+			remainingArgs = append(remainingArgs, arg)
+		}
+	}
+	if len(remainingArgs) < 1 {
+		return fmt.Errorf("expected at least 1 positional arguments, got %d", len(remainingArgs))
+	}
+	// Handle positional argument name
+	{
+		argIndex := 0
+		if argIndex >= 0 && argIndex < len(remainingArgs) {
+			argVal := remainingArgs[argIndex]
+			c.name = argVal
 		}
 	}
 
 	if c.CommandAction != nil {
 		if err := c.CommandAction(c); err != nil {
-			return fmt.Errorf("generate failed: %w", err)
+			return fmt.Errorf("update failed: %w", err)
 		}
 	} else {
 		c.Usage()
@@ -149,29 +161,28 @@ func (c *Generate) Execute(args []string) error {
 	return nil
 }
 
-func (c *Iso) NewGenerate() *Generate {
-	set := flag.NewFlagSet("generate", flag.ContinueOnError)
-	v := &Generate{
-		Iso:         c,
+func (c *Skill) NewUpdate() *Update {
+	set := flag.NewFlagSet("update", flag.ContinueOnError)
+	v := &Update{
+		Skill:       c,
 		Flags:       set,
 		SubCommands: make(map[string]Cmd),
 	}
 
 	set.StringVar(&v.profile, "profile", "", "TODO: Add usage text")
 
-	set.BoolVar(&v.dry, "dry", true, "When this is true it's a dry run and doesn't save changes")
+	set.BoolVar(&v.all, "all", false, "Update all skills")
 
-	set.BoolVar(&v.includeData, "include-data", true, "Include the profile data for backup sake")
+	set.BoolVar(&v.force, "force", false, "Force update replacing local modifications")
 
-	set.IntVar(&v.index, "index", -1, "The chosen disk index number see disk list")
-	set.IntVar(&v.index, "1", -1, "The chosen disk index number see disk list")
+	set.StringVar(&v.scope, "scope", "user", "Scope of installation user or project")
 
-	set.StringVar(&v.outputDirectory, "output-dir", ".", "Directory to output the ISO")
+	set.StringVar(&v.agent, "agent", "", "Target agent codex claude copilot cursor")
 	set.Usage = v.Usage
 
-	v.CommandAction = func(c *Generate) error {
+	v.CommandAction = func(c *Update) error {
 
-		err := commands.IsoGenerate(c.profile, c.dry, c.includeData, c.index, c.outputDirectory)
+		err := commands.SkillUpdate(c.profile, c.all, c.force, c.scope, c.agent, c.name)
 		if err != nil {
 			if errors.Is(err, cmd.ErrPrintHelp) {
 				c.Usage()
@@ -184,7 +195,7 @@ func (c *Iso) NewGenerate() *Generate {
 			if e, ok := err.(*cmd.ErrExitCode); ok {
 				return e
 			}
-			return fmt.Errorf("generate failed: %w", err)
+			return fmt.Errorf("update failed: %w", err)
 		}
 		return nil
 	}

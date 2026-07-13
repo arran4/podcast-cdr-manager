@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"errors"
@@ -13,44 +14,50 @@ import (
 	"github.com/arran4/podcast-cdr-manager/commands"
 )
 
-var _ Cmd = (*ListDisks)(nil)
+var _ Cmd = (*Install)(nil)
 
-type ListDisks struct {
-	*Disk
+type Install struct {
+	*Skill
 	Flags         *flag.FlagSet
 	profile       string
+	scope         string
+	agent         string
+	force         bool
+	source        string
 	SubCommands   map[string]Cmd
-	CommandAction func(c *ListDisks) error
+	CommandAction func(c *Install) error
 }
 
-type UsageDataListDisks struct {
-	*ListDisks
+type UsageDataInstall struct {
+	*Install
 	Recursive bool
 }
 
-func (c *ListDisks) Usage() {
-	err := executeUsage(os.Stderr, "list-disks_usage.txt", UsageDataListDisks{c, false})
+func (c *Install) Usage() {
+	err := executeUsage(os.Stderr, "install_usage.txt", UsageDataInstall{c, false})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating usage: %s\n", err)
 	}
 }
 
-func (c *ListDisks) UsageRecursive() {
-	err := executeUsage(os.Stderr, "list-disks_usage.txt", UsageDataListDisks{c, true})
+func (c *Install) UsageRecursive() {
+	err := executeUsage(os.Stderr, "install_usage.txt", UsageDataInstall{c, true})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating usage: %s\n", err)
 	}
 }
 
-func (c *ListDisks) Execute(args []string) error {
+func (c *Install) Execute(args []string) error {
 	if len(args) > 0 {
 		if cmd, ok := c.SubCommands[args[0]]; ok {
 			return cmd.Execute(args[1:])
 		}
 	}
+	var remainingArgs []string
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if arg == "--" {
+			remainingArgs = append(remainingArgs, args[i+1:]...)
 			break
 		}
 		if strings.HasPrefix(arg, "-") && arg != "-" {
@@ -76,18 +83,64 @@ func (c *ListDisks) Execute(args []string) error {
 					}
 				}
 				c.profile = value
+
+			case "scope":
+				if !hasValue {
+					if i+1 < len(args) {
+						value = args[i+1]
+						i++
+					} else {
+						return fmt.Errorf("flag %s requires a value", name)
+					}
+				}
+				c.scope = value
+
+			case "agent":
+				if !hasValue {
+					if i+1 < len(args) {
+						value = args[i+1]
+						i++
+					} else {
+						return fmt.Errorf("flag %s requires a value", name)
+					}
+				}
+				c.agent = value
+
+			case "force":
+				if hasValue {
+					b, err := strconv.ParseBool(value)
+					if err != nil {
+						return fmt.Errorf("invalid boolean value for flag %s: %s", name, value)
+					}
+					c.force = b
+				} else {
+					c.force = true
+				}
 			case "help", "h":
 				c.Usage()
 				return nil
 			default:
 				return fmt.Errorf("unknown flag: %s", name)
 			}
+		} else {
+			remainingArgs = append(remainingArgs, arg)
+		}
+	}
+	if len(remainingArgs) < 1 {
+		return fmt.Errorf("expected at least 1 positional arguments, got %d", len(remainingArgs))
+	}
+	// Handle positional argument source
+	{
+		argIndex := 0
+		if argIndex >= 0 && argIndex < len(remainingArgs) {
+			argVal := remainingArgs[argIndex]
+			c.source = argVal
 		}
 	}
 
 	if c.CommandAction != nil {
 		if err := c.CommandAction(c); err != nil {
-			return fmt.Errorf("list-disks failed: %w", err)
+			return fmt.Errorf("install failed: %w", err)
 		}
 	} else {
 		c.Usage()
@@ -96,20 +149,26 @@ func (c *ListDisks) Execute(args []string) error {
 	return nil
 }
 
-func (c *Disk) NewListDisks() *ListDisks {
-	set := flag.NewFlagSet("list-disks", flag.ContinueOnError)
-	v := &ListDisks{
-		Disk:        c,
+func (c *Skill) NewInstall() *Install {
+	set := flag.NewFlagSet("install", flag.ContinueOnError)
+	v := &Install{
+		Skill:       c,
 		Flags:       set,
 		SubCommands: make(map[string]Cmd),
 	}
 
 	set.StringVar(&v.profile, "profile", "", "TODO: Add usage text")
+
+	set.StringVar(&v.scope, "scope", "user", "Scope of installation user or project")
+
+	set.StringVar(&v.agent, "agent", "", "Target agent codex claude copilot cursor")
+
+	set.BoolVar(&v.force, "force", false, "Force update replacing local modifications")
 	set.Usage = v.Usage
 
-	v.CommandAction = func(c *ListDisks) error {
+	v.CommandAction = func(c *Install) error {
 
-		err := commands.DiskList(c.profile)
+		err := commands.SkillInstall(c.profile, c.scope, c.agent, c.force, c.source)
 		if err != nil {
 			if errors.Is(err, cmd.ErrPrintHelp) {
 				c.Usage()
@@ -122,7 +181,7 @@ func (c *Disk) NewListDisks() *ListDisks {
 			if e, ok := err.(*cmd.ErrExitCode); ok {
 				return e
 			}
-			return fmt.Errorf("list-disks failed: %w", err)
+			return fmt.Errorf("install failed: %w", err)
 		}
 		return nil
 	}
