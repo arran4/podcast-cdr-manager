@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 	"path/filepath"
 	"strings"
 )
@@ -64,11 +65,14 @@ func (s *GitHubSource) getLatestCommit() (string, error) {
 	// GitHub recommends a user agent
 	req.Header.Set("User-Agent", "podcast-cdr-manager-skill-installer")
 
-	resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to fetch commit info: %s", resp.Status)
@@ -89,11 +93,14 @@ func (s *GitHubSource) Fetch(dest string) (string, error) {
 	}
 
 	url := fmt.Sprintf("https://github.com/%s/%s/archive/%s.tar.gz", s.Owner, s.Repo, sha)
-	resp, err := http.Get(url)
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(url)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to download from github: %s", resp.Status)
@@ -103,7 +110,9 @@ func (s *GitHubSource) Fetch(dest string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer gzr.Close()
+	defer func() {
+		_ = gzr.Close()
+	}()
 
 	tr := tar.NewReader(gzr)
 
@@ -168,15 +177,15 @@ func (s *GitHubSource) Fetch(dest string) (string, error) {
 			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
 				return "", err
 			}
-			f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, 0644) // Restrict to non-executable
+			f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644) // Restrict to non-executable
 			if err != nil {
 				return "", err
 			}
 			if _, err := io.Copy(f, tr); err != nil {
-				f.Close()
+				_ = f.Close()
 				return "", err
 			}
-			f.Close()
+			_ = f.Close()
 			if relPath == "SKILL.md" {
 				foundSkillMd = true
 			}
@@ -192,6 +201,11 @@ func (s *GitHubSource) Fetch(dest string) (string, error) {
 
 func ParseSource(sourceStr string) (Source, error) {
 	if strings.HasPrefix(sourceStr, "./") || strings.HasPrefix(sourceStr, "/") || strings.HasPrefix(sourceStr, "../") {
+		return &LocalSource{Path: sourceStr}, nil
+	}
+
+	// Check if it exists locally as a directory
+	if fi, err := os.Stat(sourceStr); err == nil && fi.IsDir() {
 		return &LocalSource{Path: sourceStr}, nil
 	}
 
@@ -249,19 +263,26 @@ func copyDir(src string, dst string) error {
 			return os.MkdirAll(absTarget, 0755)
 		}
 
-		srcF, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer srcF.Close()
+		err = func() error {
+			srcF, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+			defer func() {
+				_ = srcF.Close()
+			}()
 
-		dstF, err := os.OpenFile(absTarget, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
-		if err != nil {
-			return err
-		}
-		defer dstF.Close()
+			dstF, err := os.OpenFile(absTarget, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
+			if err != nil {
+				return err
+			}
+			defer func() {
+				_ = dstF.Close()
+			}()
 
-		_, err = io.Copy(dstF, srcF)
+			_, err = io.Copy(dstF, srcF)
+			return err
+		}()
 		return err
 	})
 }
@@ -275,12 +296,16 @@ func hashDir(dir string) string {
 		if strings.HasSuffix(info.Name(), ".skill-metadata.json") {
 			return nil
 		}
-		f, err := os.Open(path)
-		if err != nil {
-			return nil
-		}
-		defer f.Close()
-		io.Copy(h, f)
+		func() {
+			f, err := os.Open(path)
+			if err != nil {
+				return
+			}
+			defer func() {
+				_ = f.Close()
+			}()
+			_, _ = io.Copy(h, f)
+		}()
 		return nil
 	})
 	return hex.EncodeToString(h.Sum(nil))[:8]

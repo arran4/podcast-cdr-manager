@@ -16,6 +16,7 @@ type Target interface {
 type AgentTarget struct {
 	agent string
 	scope string
+	base  string
 }
 
 func NewTarget(agent, scope string) (Target, error) {
@@ -30,7 +31,18 @@ func NewTarget(agent, scope string) (Target, error) {
 		return nil, fmt.Errorf("invalid scope: %s. Must be 'user' or 'project'", scope)
 	}
 
-	return &AgentTarget{agent: agent, scope: scope}, nil
+	var base string
+	var err error
+	if scope == "project" {
+		base, err = os.Getwd()
+	} else {
+		base, err = os.UserHomeDir()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve base directory: %w", err)
+	}
+
+	return &AgentTarget{agent: agent, scope: scope, base: base}, nil
 }
 
 func (t *AgentTarget) Name() string {
@@ -42,21 +54,13 @@ func (t *AgentTarget) Scope() string {
 }
 
 func (t *AgentTarget) InstallPath(skillName string) string {
-	var base string
-
-	if t.scope == "project" {
-		base, _ = os.Getwd()
-	} else {
-		base, _ = os.UserHomeDir()
-	}
-
 	switch t.agent {
 	case "codex", "claude", "copilot", "common":
-		return filepath.Join(base, ".agents", "skills", skillName)
+		return filepath.Join(t.base, ".agents", "skills", skillName)
 	case "cursor":
-		return filepath.Join(base, ".cursor", "skills", skillName)
+		return filepath.Join(t.base, ".cursor", "skills", skillName)
 	default:
-		return filepath.Join(base, ".agents", t.agent, "skills", skillName)
+		return filepath.Join(t.base, ".agents", t.agent, "skills", skillName)
 	}
 }
 

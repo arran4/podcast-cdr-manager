@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/arran4/podcast-cdr-manager/skill"
 )
@@ -68,9 +69,19 @@ func SkillUpdate(profile string, all bool, force bool, scope string, agent strin
 			if err != nil {
 				continue
 			}
+			agentForPath := agent
+			if strings.Contains(basePath, ".cursor") {
+				agentForPath = "cursor"
+			} else if strings.Contains(basePath, ".agents") {
+				agentForPath = "common"
+			}
+			tForPath, err := skill.NewTarget(agentForPath, scope)
+			if err != nil {
+				continue
+			}
 			for _, entry := range entries {
 				if entry.IsDir() {
-					err := inst.Update(entry.Name(), t, force)
+					err := inst.Update(entry.Name(), tForPath, force)
 					if err != nil {
 						fmt.Printf("Warning: failed to update %s: %v\n", entry.Name(), err)
 					} else {

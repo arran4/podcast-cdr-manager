@@ -26,17 +26,18 @@ func (i *Installer) Install(sourceStr string, target Target, force bool) error {
 		skillName = filepath.Base(sourceStr)
 	}
 
+	if skillName == "" || skillName == "." || skillName == ".." || strings.ContainsAny(skillName, `/\\`) {
+		return fmt.Errorf("invalid skill name: %q", skillName)
+	}
+
 	dest := target.InstallPath(skillName)
 
-	if _, err := os.Stat(dest); err == nil {
-		if !force {
-			return fmt.Errorf("skill '%s' is already installed at %s. Use --force to overwrite", skillName, dest)
-		}
-		os.RemoveAll(dest)
+	if _, err := os.Stat(dest); err == nil && !force {
+		return fmt.Errorf("skill '%s' is already installed at %s. Use --force to overwrite", skillName, dest)
 	}
 
 	tempDest := dest + ".tmp"
-	os.RemoveAll(tempDest)
+	_ = os.RemoveAll(tempDest)
 	if err := os.MkdirAll(tempDest, 0755); err != nil {
 		return err
 	}
@@ -59,6 +60,7 @@ func (i *Installer) Install(sourceStr string, target Target, force bool) error {
 		return fmt.Errorf("failed to write metadata: %w", err)
 	}
 
+	_ = os.RemoveAll(dest)
 	if err := os.Rename(tempDest, dest); err != nil {
 		return fmt.Errorf("failed to finalize installation: %w", err)
 	}
@@ -68,6 +70,10 @@ func (i *Installer) Install(sourceStr string, target Target, force bool) error {
 }
 
 func (i *Installer) Update(skillName string, target Target, force bool) error {
+	if skillName == "" || skillName == "." || skillName == ".." || strings.ContainsAny(skillName, `/\\`) {
+		return fmt.Errorf("invalid skill name: %q", skillName)
+	}
+
 	dest := target.InstallPath(skillName)
 
 	md, err := ReadMetadata(dest)
@@ -123,6 +129,9 @@ func (i *Installer) Update(skillName string, target Target, force bool) error {
 }
 
 func (i *Installer) Remove(skillName string, target Target) error {
+	if skillName == "" || skillName == "." || skillName == ".." || strings.ContainsAny(skillName, `/\\`) {
+		return fmt.Errorf("invalid skill name: %q", skillName)
+	}
 	dest := target.InstallPath(skillName)
 	if _, err := os.Stat(dest); os.IsNotExist(err) {
 		return fmt.Errorf("skill '%s' not found", skillName)

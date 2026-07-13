@@ -20,11 +20,14 @@ func ReadMetadata(skillDir string) (*Metadata, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-
 	var md Metadata
-	if err := json.NewDecoder(f).Decode(&md); err != nil {
+	err = json.NewDecoder(f).Decode(&md)
+	closeErr := f.Close()
+	if err != nil {
 		return nil, err
+	}
+	if closeErr != nil {
+		return nil, closeErr
 	}
 	return &md, nil
 }
@@ -35,9 +38,13 @@ func WriteMetadata(skillDir string, md *Metadata) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
-	return enc.Encode(md)
+	err = enc.Encode(md)
+	closeErr := f.Close()
+	if err != nil {
+		return err
+	}
+	return closeErr
 }
