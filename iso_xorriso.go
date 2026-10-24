@@ -92,7 +92,7 @@ func (w *xorrisoImageWriter) AddLocalFile(sourcePath, name string) error {
 	if err != nil {
 		return fmt.Errorf("open %q: %w", sourcePath, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	return w.AddFile(f, name)
 }
 
@@ -104,7 +104,7 @@ func (w *xorrisoImageWriter) WriteTo(destination io.Writer, volumeName string) e
 	if err != nil {
 		return fmt.Errorf("create xorriso output: %w", err)
 	}
-	defer os.Remove(output.Name())
+	defer func() { _ = os.Remove(output.Name()) }()
 	if err := output.Close(); err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (w *xorrisoImageWriter) WriteTo(destination io.Writer, volumeName string) e
 	if err != nil {
 		return fmt.Errorf("open mastered ISO: %w", err)
 	}
-	defer src.Close()
+	defer func() { _ = src.Close() }()
 	if _, err := io.Copy(destination, src); err != nil {
 		return fmt.Errorf("write mastered ISO: %w", err)
 	}
