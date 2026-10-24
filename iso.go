@@ -187,10 +187,27 @@ func (d *Disk) generateISO(ctx context.Context, fn string, includeProfileData bo
 	if len(casts) == 0 {
 		return fmt.Errorf("found 0 casts for disk")
 	}
+	writer, err := createWriter()
+	if err != nil {
+		return fmt.Errorf("create ISO writer: %w", err)
+	}
+	defer func() {
+		if err := writer.Cleanup(); err != nil {
+			log.Printf("ISO writer cleanup: %v", err)
+		}
+	}()
+
+	// Legacy ISO mastering folds and truncates names, while Rock Ridge/Joliet
+	// backends can preserve their full names. Validate against the actual
+	// backend's collision policy before starting any HTTP downloads.
+	collisionKey := legacyISOIdentifier
+	if aware, ok := writer.(interface{ CollisionKey(string) string }); ok {
+		collisionKey = aware.CollisionKey
+	}
 	names := make([]string, len(casts))
 	seen := make(map[string]string)
 	if includeProfileData {
-		seen[legacyISOIdentifier(profile.Name+".yaml")] = profile.Name + ".yaml"
+		seen[collisionKey(profile.Name+".yaml")] = profile.Name + ".yaml"
 	}
 	for i, cast := range casts {
 		if cast == nil {
@@ -200,7 +217,7 @@ func (d *Disk) generateISO(ctx context.Context, fn string, includeProfileData bo
 		if err != nil {
 			return err
 		}
-		key := legacyISOIdentifier(name)
+		key := collisionKey(name)
 		if previous, exists := seen[key]; exists {
 			return fmt.Errorf("ISO filename collision: %q and %q both become %q", previous, name, key)
 		}
@@ -222,16 +239,6 @@ func (d *Disk) generateISO(ctx context.Context, fn string, includeProfileData bo
 	if err != nil {
 		return fmt.Errorf("fetch podcasts: %w", err)
 	}
-
-	writer, err := createWriter()
-	if err != nil {
-		return fmt.Errorf("create ISO writer: %w", err)
-	}
-	defer func() {
-		if err := writer.Cleanup(); err != nil {
-			log.Printf("ISO writer cleanup: %v", err)
-		}
-	}()
 
 	if includeProfileData {
 		data, err := profile.ProfileData()
