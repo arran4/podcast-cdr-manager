@@ -79,7 +79,7 @@ func downloadPodcast(ctx context.Context, link, destination string, maxBytes int
 	if err != nil {
 		return fmt.Errorf("download %q: %w", link, err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return fmt.Errorf("download %q: unexpected HTTP status %s", link, response.Status)
 	}
@@ -91,7 +91,7 @@ func downloadPodcast(ctx context.Context, link, destination string, maxBytes int
 	if err != nil {
 		return fmt.Errorf("create download file: %w", err)
 	}
-	defer out.Close()
+	defer func() { _ = out.Close() }()
 
 	var reader io.Reader = response.Body
 	if maxBytes > 0 {
@@ -229,7 +229,11 @@ func (d *Disk) generateISO(ctx context.Context, fn string, includeProfileData bo
 	if err != nil {
 		return fmt.Errorf("create temporary download directory: %w", err)
 	}
-	defer os.RemoveAll(stagingDir)
+	defer func() {
+		if err := os.RemoveAll(stagingDir); err != nil {
+			log.Printf("cleanup downloaded podcasts: %v", err)
+		}
+	}()
 
 	var capacityBytes int64
 	if d.TotalSpaceMb > 0 {
@@ -259,10 +263,14 @@ func (d *Disk) generateISO(ctx context.Context, fn string, includeProfileData bo
 	if err != nil {
 		return fmt.Errorf("create temporary ISO: %w", err)
 	}
-	defer os.Remove(out.Name())
+	defer func() {
+		if err := os.Remove(out.Name()); err != nil && !os.IsNotExist(err) {
+			log.Printf("cleanup temporary ISO: %v", err)
+		}
+	}()
 
 	if err := writer.WriteTo(out, d.Name); err != nil {
-		out.Close()
+		_ = out.Close()
 		return fmt.Errorf("write ISO image: %w", err)
 	}
 	if err := out.Close(); err != nil {
