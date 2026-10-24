@@ -250,7 +250,8 @@ jobs:
 
   go-test:
     name: Go lint/test (${{ matrix.os }})
-    needs: [route, golangci]
+    # Run tests independently of lint failures so both diagnostics are available.
+    needs: [route]
     if: ${{ needs.route.outputs.run_code_checks == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -264,7 +265,7 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: Test
-        run: go test ./... -v
+        run: go test -race ./... -v
 
   go-vet:
     name: Go vet
