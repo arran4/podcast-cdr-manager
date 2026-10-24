@@ -16,7 +16,7 @@ import (
 func TestGenerateISORoundTrip(t *testing.T) {
 	audio := []byte("test mp3 payload")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write(audio)
+		_, _ = w.Write(audio)
 	}))
 	defer server.Close()
 
@@ -32,7 +32,11 @@ func TestGenerateISORoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			t.Errorf("close ISO file: %v", err)
+		}
+	}()
 	image, err := iso9660.OpenImage(f)
 	if err != nil {
 		t.Fatal(err)
