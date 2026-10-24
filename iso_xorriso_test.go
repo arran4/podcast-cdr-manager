@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -48,5 +49,46 @@ func TestXorrisoBackendPreservesLongFilename(t *testing.T) {
 	}
 	if !bytes.Equal(got, audio) {
 		t.Fatal("extracted MP3 does not match input")
+	}
+}
+
+func TestXorrisoBackendRetainsDistinctLongNames(t *testing.T) {
+	if _, err := exec.LookPath("xorriso"); err != nil {
+		t.Skip("xorriso not installed (CI installs it)")
+	}
+	prefix := strings.Repeat("a", 35)
+	first := prefix + "-one.mp3"
+	second := prefix + "-two.mp3"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(filepath.Base(r.URL.Path)))
+	}))
+	defer server.Close()
+
+	disk := &Disk{Name: "PODTEST", TotalSpaceMb: 10}
+	profile := &Profile{Casts: []*Cast{
+		{MpegLink: server.URL + "/" + first, DiskName: disk.Name},
+		{MpegLink: server.URL + "/" + second, DiskName: disk.Name},
+	}}
+	working := t.TempDir()
+	image := filepath.Join(working, "two-long-names.iso")
+	if err := disk.generateISO(t.Context(), image, false, profile, newXorrisoImageWriter); err != nil {
+		t.Fatalf("xorriso should preserve non-colliding long filenames: %v", err)
+	}
+	extracted := filepath.Join(working, "extracted")
+	if err := os.Mkdir(extracted, 0755); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("xorriso", "-osirrox", "on", "-indev", image, "-extract", "/", extracted)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("extract with xorriso: %v\n%s", err, output)
+	}
+	for _, name := range []string{first, second} {
+		got, err := os.ReadFile(filepath.Join(extracted, name))
+		if err != nil {
+			t.Fatalf("missing independently named file %q: %v", name, err)
+		}
+		if string(got) != name {
+			t.Fatalf("bad content in %q: %q", name, got)
+		}
 	}
 }
