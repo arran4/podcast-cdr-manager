@@ -2,146 +2,255 @@ package podcast_cdr_manager
 
 import (
 	"bytes"
+	"context"
 	"fmt"
-	"github.com/kdomanski/iso9660"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"sync"
 )
 
-func (d *Disk) GenerateIso(fn string, includeProfileData bool, profile *Profile) error {
+type podcastISOInput struct {
+	source string
+	target string
+}
 
-	casts, err := profile.GetCastsByDiskName(d.Name)
+func podcastFilename(link string) (string, error) {
+	u, err := url.Parse(link)
 	if err != nil {
-		return fmt.Errorf("failed to find casts by disk: %s", err)
+		return "", fmt.Errorf("invalid podcast URL %q: %w", link, err)
+	}
+	if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return "", fmt.Errorf("unsupported podcast URL %q", link)
+	}
+	name := path.Base(u.Path)
+	if name == "." || name == "/" || name == "" {
+		return "", fmt.Errorf("podcast URL has no filename: %q", link)
+	}
+	return name, nil
+}
+
+func downloadPodcast(ctx context.Context, link, destination string, maxBytes int64) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, link, nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	response, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("download %q: %w", link, err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return fmt.Errorf("download %q: unexpected HTTP status %s", link, response.Status)
+	}
+	if maxBytes > 0 && response.ContentLength > maxBytes {
+		return fmt.Errorf("download %q: exceeds disc capacity", link)
 	}
 
+	out, err := os.Create(destination)
+	if err != nil {
+		return fmt.Errorf("create download file: %w", err)
+	}
+	defer func() { _ = out.Close() }()
+
+	var reader io.Reader = response.Body
+	if maxBytes > 0 {
+		reader = io.LimitReader(response.Body, maxBytes+1)
+	}
+	n, copyErr := io.Copy(out, reader)
+	if copyErr != nil {
+		return fmt.Errorf("download %q: %w", link, copyErr)
+	}
+	if maxBytes > 0 && n > maxBytes {
+		return fmt.Errorf("download %q: exceeds disc capacity", link)
+	}
+	if response.ContentLength >= 0 && n != response.ContentLength {
+		return fmt.Errorf("download %q: expected %d bytes, received %d", link, response.ContentLength, n)
+	}
+	if err := out.Close(); err != nil {
+		return fmt.Errorf("finish download %q: %w", link, err)
+	}
+	return nil
+}
+
+func fetchPodcasts(ctx context.Context, casts []*Cast, filenames []string, stagingDir string, maxBytes int64) ([]podcastISOInput, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	inputs := make([]podcastISOInput, len(casts))
+	jobs := make(chan int)
+	var workers sync.WaitGroup
+	var errorMu sync.Mutex
+	var firstErr error
+
+	worker := func() {
+		defer workers.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case i, ok := <-jobs:
+				if !ok {
+					return
+				}
+				localFile := filepath.Join(stagingDir, fmt.Sprintf("episode-%06d", i))
+				if err := downloadPodcast(ctx, casts[i].MpegLink, localFile, maxBytes); err != nil {
+					errorMu.Lock()
+					if firstErr == nil {
+						firstErr = err
+						cancel()
+					}
+					errorMu.Unlock()
+					return
+				}
+				inputs[i] = podcastISOInput{source: localFile, target: filenames[i]}
+			}
+		}
+	}
+	for i := 0; i < len(casts) && i < 4; i++ {
+		workers.Add(1)
+		go worker()
+	}
+submit:
+	for i := range casts {
+		select {
+		case <-ctx.Done():
+			break submit
+		case jobs <- i:
+		}
+	}
+	close(jobs)
+	workers.Wait()
+	if firstErr != nil {
+		return nil, firstErr
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return inputs, nil
+}
+
+// GenerateIso downloads each episode into temporary files, then produces a
+// complete image before replacing the destination. Download memory is bounded.
+func (d *Disk) GenerateIso(fn string, includeProfileData bool, profile *Profile) error {
+	return d.generateISO(context.Background(), fn, includeProfileData, profile, newISOImageWriter)
+}
+
+func (d *Disk) generateISO(ctx context.Context, fn string, includeProfileData bool, profile *Profile, createWriter func() (isoImageWriter, error)) error {
+	if d == nil || profile == nil {
+		return fmt.Errorf("disk and profile must not be nil")
+	}
+	casts, err := profile.GetCastsByDiskName(d.Name)
+	if err != nil {
+		return fmt.Errorf("find casts by disk: %w", err)
+	}
 	if len(casts) == 0 {
 		return fmt.Errorf("found 0 casts for disk")
 	}
-
-	writer, err := iso9660.NewWriter()
+	writer, err := createWriter()
 	if err != nil {
-		return fmt.Errorf("create writer: %s", err)
+		return fmt.Errorf("create ISO writer: %w", err)
 	}
-	defer func(writer *iso9660.ImageWriter) {
-		err := writer.Cleanup()
-		if err != nil {
-			log.Printf("Cleanup error: %s", err)
+	defer func() {
+		if err := writer.Cleanup(); err != nil {
+			log.Printf("ISO writer cleanup: %v", err)
 		}
-	}(writer)
+	}()
 
-	if includeProfileData && profile != nil {
+	// All supported backends create Rock Ridge/Joliet images and use a
+	// case-insensitive collision policy to avoid cross-platform duplicates.
+	collisionKey := func(name string) string { return name }
+	if aware, ok := writer.(interface{ CollisionKey(string) string }); ok {
+		collisionKey = aware.CollisionKey
+	}
+	names := make([]string, len(casts))
+	seen := make(map[string]string)
+	if includeProfileData {
+		seen[collisionKey(profile.Name+".yaml")] = profile.Name + ".yaml"
+	}
+	for i, cast := range casts {
+		if cast == nil {
+			return fmt.Errorf("nil podcast at index %d", i)
+		}
+		name, err := podcastFilename(cast.MpegLink)
+		if err != nil {
+			return err
+		}
+		key := collisionKey(name)
+		if previous, exists := seen[key]; exists {
+			return fmt.Errorf("ISO filename collision: %q and %q both become %q", previous, name, key)
+		}
+		seen[key] = name
+		names[i] = name
+	}
+
+	stagingDir, err := os.MkdirTemp("", "podcast-cdr-downloads-")
+	if err != nil {
+		return fmt.Errorf("create temporary download directory: %w", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(stagingDir); err != nil {
+			log.Printf("cleanup downloaded podcasts: %v", err)
+		}
+	}()
+
+	var capacityBytes int64
+	if d.TotalSpaceMb > 0 {
+		capacityBytes = int64(d.TotalSpaceMb) * 1024 * 1024
+	}
+	inputs, err := fetchPodcasts(ctx, casts, names, stagingDir, capacityBytes)
+	if err != nil {
+		return fmt.Errorf("fetch podcasts: %w", err)
+	}
+
+	if includeProfileData {
 		data, err := profile.ProfileData()
 		if err != nil {
-			return fmt.Errorf("create profile data: %s", err)
+			return fmt.Errorf("serialize profile: %w", err)
 		}
-		err = writer.AddFile(bytes.NewReader(data), profile.Name+".yaml")
-		if err != nil {
-			return fmt.Errorf("add file: %s", err)
+		if err := writer.AddFile(bytes.NewReader(data), profile.Name+".yaml"); err != nil {
+			return fmt.Errorf("add profile: %w", err)
+		}
+	}
+	for _, input := range inputs {
+		if err := writer.AddLocalFile(input.source, input.target); err != nil {
+			return fmt.Errorf("add podcast %q: %w", input.target, err)
 		}
 	}
 
-	type Message struct {
-		Err      error
-		Filename string
-		Bytes    []byte
+	out, err := os.CreateTemp(filepath.Dir(fn), "."+filepath.Base(fn)+".*.tmp")
+	if err != nil {
+		return fmt.Errorf("create temporary ISO: %w", err)
 	}
-
-	mainThread := make(chan *Message)
-	writeToDisk := make(chan *Message)
-	concurrentLimit := make(chan struct{}, 4)
-	go func() {
-		for msg := range writeToDisk {
-			if msg == nil {
-				continue
-			}
-			if msg.Err != nil {
-				mainThread <- msg
-				break
-			}
-			err = writer.AddFile(bytes.NewReader(msg.Bytes), msg.Filename)
-			if err != nil {
-				mainThread <- &Message{Err: fmt.Errorf("add file: %s", err)}
-				break
-			}
-			log.Printf("Written: %s", msg.Filename)
+	defer func() {
+		if err := os.Remove(out.Name()); err != nil && !os.IsNotExist(err) {
+			log.Printf("cleanup temporary ISO: %v", err)
 		}
-		close(mainThread)
 	}()
-	wg := sync.WaitGroup{}
-	wg.Add(len(casts))
-	for i := range casts {
-		go func(cast *Cast) {
-			defer wg.Done()
-			concurrentLimit <- struct{}{}
-			defer func() {
-				<-concurrentLimit
-			}()
-			log.Printf("Downloading %s", cast.MpegLink)
-			r, err := http.Get(cast.MpegLink)
-			if err != nil {
-				log.Printf("Errpr Downloading %s %s", cast.MpegLink, err)
-				writeToDisk <- &Message{
-					Err: err,
-				}
-				return
-			}
-			defer func() {
-				err := r.Body.Close()
-				if err != nil {
-					log.Printf("Error closing http connection: %s", err)
-				}
-			}()
-			b, err := io.ReadAll(r.Body)
-			if err != nil {
-				log.Printf("Errpr Downloading %s %s", cast.MpegLink, err)
-				writeToDisk <- &Message{
-					Err: err,
-				}
-				return
-			}
-			u, err := url.Parse(cast.MpegLink)
-			if err != nil {
-				log.Printf("Errpr Downloading %s %s", cast.MpegLink, err)
-				writeToDisk <- &Message{
-					Err: fmt.Errorf("url parser: %w", err),
-				}
-				return
-			}
-			log.Printf("Downloaded %s", cast.MpegLink)
-			writeToDisk <- &Message{
-				Bytes:    b,
-				Filename: path.Base(u.Path),
-			}
-		}(casts[i])
-	}
-	wg.Wait()
-	close(writeToDisk)
-	msg := <-mainThread
 
-	if msg != nil && msg.Err != nil {
-		return fmt.Errorf("downloading: %w", err)
+	if err := writer.WriteTo(out, d.Name); err != nil {
+		_ = out.Close()
+		return fmt.Errorf("write ISO image: %w", err)
 	}
-
-	outputFile, err := os.OpenFile(fn, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
+	if err := out.Close(); err != nil {
+		return fmt.Errorf("close ISO image: %w", err)
+	}
+	stat, err := os.Stat(out.Name())
 	if err != nil {
-		return fmt.Errorf("create file: %s", err)
+		return fmt.Errorf("stat ISO image: %w", err)
 	}
-
-	err = writer.WriteTo(outputFile, d.Name)
-	if err != nil {
-		return fmt.Errorf("write ISO image: %s", err)
+	if capacityBytes > 0 && stat.Size() > capacityBytes {
+		return fmt.Errorf("ISO image %d bytes exceeds disc capacity %d bytes", stat.Size(), capacityBytes)
 	}
-
-	err = outputFile.Close()
-	if err != nil {
-		return fmt.Errorf("close output file: %s", err)
+	if err := os.Chmod(out.Name(), 0644); err != nil {
+		return fmt.Errorf("set ISO image permissions: %w", err)
 	}
-
+	if err := os.Rename(out.Name(), fn); err != nil {
+		return fmt.Errorf("publish ISO image: %w", err)
+	}
 	return nil
 }
