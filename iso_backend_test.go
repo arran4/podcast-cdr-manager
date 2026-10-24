@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestISOBackendSelectionDefaultsToLegacy(t *testing.T) {
+func TestISOBackendSelectionDefaultsToDiskFS(t *testing.T) {
 	t.Setenv("PODCAST_CDR_ISO_BACKEND", "")
 	writer, err := newISOImageWriter()
 	if err != nil {
@@ -17,7 +17,7 @@ func TestISOBackendSelectionDefaultsToLegacy(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Setenv("PODCAST_CDR_ISO_BACKEND", "legacy")
+	t.Setenv("PODCAST_CDR_ISO_BACKEND", "diskfs")
 	writer, err = newISOImageWriter()
 	if err != nil {
 		t.Fatal(err)

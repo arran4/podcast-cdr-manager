@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/kdomanski/iso9660"
+	// Default image creation is implemented in Go using go-diskfs.
 )
 
 // isoImageWriter is the narrow image-mastering boundary. Alternative backends
@@ -17,15 +17,15 @@ type isoImageWriter interface {
 	Cleanup() error
 }
 
-// newISOImageWriter selects an ISO writer. The legacy Go writer remains the
-// default; the xorriso backend is an explicit opt-in for long names and Joliet.
+// newISOImageWriter chooses the pure-Go Rock Ridge/Joliet backend by default.
+// xorriso remains an optional alternate implementation and independent validator.
 func newISOImageWriter() (isoImageWriter, error) {
 	switch os.Getenv("PODCAST_CDR_ISO_BACKEND") {
-	case "", "legacy":
-		return iso9660.NewWriter()
+	case "", "diskfs":
+		return newDiskfsISOImageWriter()
 	case "xorriso":
 		return newXorrisoImageWriter()
 	default:
-		return nil, fmt.Errorf("unknown ISO backend %q (choose legacy or xorriso)", os.Getenv("PODCAST_CDR_ISO_BACKEND"))
+		return nil, fmt.Errorf("unknown ISO backend %q (choose diskfs or xorriso)", os.Getenv("PODCAST_CDR_ISO_BACKEND"))
 	}
 }

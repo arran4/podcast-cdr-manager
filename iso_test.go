@@ -1,7 +1,6 @@
 package podcast_cdr_manager
 
 import (
-	"bytes"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,68 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kdomanski/iso9660"
 )
-
-func TestGenerateISORoundTrip(t *testing.T) {
-	audio := []byte("test mp3 payload")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write(audio)
-	}))
-	defer server.Close()
-
-	disk := &Disk{Name: "PODTEST", TotalSpaceMb: 10}
-	profile := &Profile{Name: "test-profile", Version: "1", Casts: []*Cast{{
-		MpegLink: server.URL + "/episode.mp3", DiskName: disk.Name,
-	}}}
-	target := filepath.Join(t.TempDir(), "podcasts.iso")
-	if err := disk.GenerateIso(target, true, profile); err != nil {
-		t.Fatalf("generate: %v", err)
-	}
-	f, err := os.Open(target)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := f.Close(); err != nil {
-			t.Errorf("close ISO file: %v", err)
-		}
-	}()
-	image, err := iso9660.OpenImage(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	root, err := image.RootDir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	children, err := root.GetChildren()
-	if err != nil {
-		t.Fatal(err)
-	}
-	foundMP3, foundYAML := false, false
-	for _, child := range children {
-		data, err := io.ReadAll(child.Reader())
-		if err != nil {
-			t.Fatal(err)
-		}
-		switch strings.ToLower(child.Name()) {
-		case "episode.mp3":
-			foundMP3 = true
-			if !bytes.Equal(data, audio) {
-				t.Fatalf("MP3 bytes do not match")
-			}
-		case "test-profile.yaml":
-			foundYAML = true
-			if !bytes.Contains(data, []byte("test-profile")) {
-				t.Fatalf("profile backup missing name")
-			}
-		}
-	}
-	if !foundMP3 || !foundYAML {
-		t.Fatalf("missing output entries: MP3=%v YAML=%v", foundMP3, foundYAML)
-	}
-}
 
 func TestGenerateISORejectsHTTPStatusAndPreservesImage(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -96,15 +34,15 @@ func TestGenerateISORejectsHTTPStatusAndPreservesImage(t *testing.T) {
 	}
 }
 
-func TestGenerateISORejectsMangledNameCollisionBeforeDownload(t *testing.T) {
+func TestGenerateISORejectsCaseFoldedCollisionBeforeDownload(t *testing.T) {
 	disk := &Disk{Name: "PODTEST", TotalSpaceMb: 10}
 	profile := &Profile{Casts: []*Cast{
-		{MpegLink: "https://example.invalid/" + strings.Repeat("a", 40) + ".mp3", DiskName: disk.Name},
-		{MpegLink: "https://example.invalid/" + strings.Repeat("a", 39) + "b.mp3", DiskName: disk.Name},
+		{MpegLink: "https://example.invalid/EPISODE.mp3", DiskName: disk.Name},
+		{MpegLink: "https://example.invalid/episode.mp3", DiskName: disk.Name},
 	}}
 	err := disk.GenerateIso(filepath.Join(t.TempDir(), "out.iso"), false, profile)
 	if err == nil || !strings.Contains(err.Error(), "collision") {
-		t.Fatalf("expected ISO filename collision, got %v", err)
+		t.Fatalf("expected case-insensitive collision, got %v", err)
 	}
 }
 

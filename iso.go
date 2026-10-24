@@ -11,48 +11,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"sync"
 )
 
 type podcastISOInput struct {
 	source string
 	target string
-}
-
-// legacyISOIdentifier matches the current writer's file-name mangling. Reject
-// collisions before AddLocalFile (which otherwise replaces staged files).
-// Replace this with backend-specific collision handling when migrating writers.
-func legacyISOIdentifier(name string) string {
-	parts := strings.Split(strings.ToLower(name), ".")
-	base := parts[0]
-	extension := ""
-	if len(parts) > 1 {
-		base = strings.Join(parts[:len(parts)-1], "_")
-		extension = parts[len(parts)-1]
-	}
-	mangle := func(s string, max int) string {
-		const allowed = "abcdefghijklmnopqrstuvwxyz0123456789_!\"%&'()*+,-./:;<=>?"
-		var out strings.Builder
-		for i := 0; i < len(s) && i < max; i++ {
-			if strings.ContainsRune(allowed, rune(s[i])) {
-				out.WriteByte(s[i])
-			} else {
-				out.WriteByte('_')
-			}
-		}
-		return out.String()
-	}
-	extension = mangle(extension, 8)
-	maxBase := 28 // identifier length 30 less ";1"
-	if extension != "" {
-		maxBase -= len(extension) + 1
-	}
-	base = mangle(base, maxBase)
-	if extension != "" {
-		return base + "." + extension + ";1"
-	}
-	return base + ";1"
 }
 
 func podcastFilename(link string) (string, error) {
@@ -197,10 +161,9 @@ func (d *Disk) generateISO(ctx context.Context, fn string, includeProfileData bo
 		}
 	}()
 
-	// Legacy ISO mastering folds and truncates names, while Rock Ridge/Joliet
-	// backends can preserve their full names. Validate against the actual
-	// backend's collision policy before starting any HTTP downloads.
-	collisionKey := legacyISOIdentifier
+	// All supported backends create Rock Ridge/Joliet images and use a
+	// case-insensitive collision policy to avoid cross-platform duplicates.
+	collisionKey := func(name string) string { return name }
 	if aware, ok := writer.(interface{ CollisionKey(string) string }); ok {
 		collisionKey = aware.CollisionKey
 	}

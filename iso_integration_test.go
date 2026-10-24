@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// Independent validation: xorriso is not involved in producing this image.
+// Independent validation: xorriso checks the image produced by go-diskfs.
 func TestGeneratedISOIsReadableByXorriso(t *testing.T) {
 	if _, err := exec.LookPath("xorriso"); err != nil {
 		t.Skip("xorriso not installed (CI installs it)")

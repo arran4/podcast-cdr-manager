@@ -13,13 +13,18 @@ import (
 // xorrisoImageWriter is an optional externally-mastered ISO backend. It
 // creates Rock Ridge and Joliet directory trees, preserving long MP3 names.
 // xorriso is invoked directly (never through a shell).
-type xorrisoImageWriter struct {
+type stagedISOFiles struct {
 	stagingDir string
+}
+
+// xorrisoImageWriter embeds common staging used by both ISO implementations.
+type xorrisoImageWriter struct {
+	stagedISOFiles
 }
 
 // CollisionKey reflects portable case-insensitive directory lookup while
 // retaining full Rock Ridge and Joliet names (unlike the legacy writer).
-func (w *xorrisoImageWriter) CollisionKey(name string) string {
+func (w *stagedISOFiles) CollisionKey(name string) string {
 	return strings.ToLower(path.Clean(name))
 }
 
@@ -31,10 +36,10 @@ func newXorrisoImageWriter() (isoImageWriter, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create xorriso staging directory: %w", err)
 	}
-	return &xorrisoImageWriter{stagingDir: dir}, nil
+	return &xorrisoImageWriter{stagedISOFiles: stagedISOFiles{stagingDir: dir}}, nil
 }
 
-func (w *xorrisoImageWriter) targetPath(name string) (string, error) {
+func (w *stagedISOFiles) targetPath(name string) (string, error) {
 	if w.stagingDir == "" {
 		return "", fmt.Errorf("xorriso staging directory has been cleaned up")
 	}
@@ -59,7 +64,7 @@ func (w *xorrisoImageWriter) targetPath(name string) (string, error) {
 	return target, nil
 }
 
-func (w *xorrisoImageWriter) AddFile(source io.Reader, name string) error {
+func (w *stagedISOFiles) AddFile(source io.Reader, name string) error {
 	target, err := w.targetPath(name)
 	if err != nil {
 		return err
@@ -80,7 +85,7 @@ func (w *xorrisoImageWriter) AddFile(source io.Reader, name string) error {
 	return nil
 }
 
-func (w *xorrisoImageWriter) AddLocalFile(sourcePath, name string) error {
+func (w *stagedISOFiles) AddLocalFile(sourcePath, name string) error {
 	target, err := w.targetPath(name)
 	if err != nil {
 		return err
@@ -124,7 +129,7 @@ func (w *xorrisoImageWriter) WriteTo(destination io.Writer, volumeName string) e
 	return nil
 }
 
-func (w *xorrisoImageWriter) Cleanup() error {
+func (w *stagedISOFiles) Cleanup() error {
 	if w.stagingDir == "" {
 		return nil
 	}

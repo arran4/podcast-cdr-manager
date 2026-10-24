@@ -9,15 +9,15 @@ subscribed to.
 
 ## ISO mastering backends
 
-The default backend is `legacy` (`github.com/kdomanski/iso9660`) for compatibility with earlier releases. An optional `xorriso` backend creates Rock Ridge + Joliet ISO images with long filenames; it requires `xorriso` to be installed and available in `PATH`:
+The default backend is `diskfs` (`github.com/diskfs/go-diskfs`), creating pure-Go ISO 9660 images with Rock Ridge and Joliet extensions for long podcast filenames. An optional `xorriso` backend provides the same extensions and requires `xorriso` in `PATH`:
 
 ```sh
 PODCAST_CDR_ISO_BACKEND=xorriso podcastcdrmanager disk iso generate -index 0
 ```
 
-Use `PODCAST_CDR_ISO_BACKEND=legacy` (or leave the variable unset) to retain the pure-Go legacy writer. Unknown backends are rejected.
+Use `PODCAST_CDR_ISO_BACKEND=diskfs` (or leave the variable unset) for the pure-Go backend. Unknown backends are rejected.
 
-Downloads use up to four concurrent HTTP requests, saving audio into temporary files rather than retaining whole MP3 files in memory. Mastering uses temporary files and publishes a completed ISO only after successful writing and a final disc-capacity check. Ensure temporary storage has enough space for the downloaded audio and backend staging. The optional `xorriso` backend avoids extra Go dependencies but is not packaged with the executable.
+Downloads use up to four concurrent HTTP requests, saving audio into temporary files rather than retaining whole MP3 files in memory. Mastering uses temporary files and publishes a completed ISO only after successful writing and a final disc-capacity check. Ensure temporary storage has enough space for the downloaded audio and backend staging. The optional `xorriso` backend is not packaged with the executable. The pure-Go default includes go-diskfs's transitive dependencies, including klauspost/compress v1.18.5. Both backends use temporary staging and produce a completed ISO image before it replaces an existing file.
 
 **Compatibility:** these are MP3 **data CDs**, not Red Book audio CDs. Rock Ridge and Joliet preserve longer names, but older MP3 players may require simpler ISO-9660 naming conventions. Test the output with your actual player before switching the backend permanently.
 
