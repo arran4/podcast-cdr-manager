@@ -17,6 +17,12 @@ type xorrisoImageWriter struct {
 	stagingDir string
 }
 
+// CollisionKey reflects portable case-insensitive directory lookup while
+// retaining full Rock Ridge and Joliet names (unlike the legacy writer).
+func (w *xorrisoImageWriter) CollisionKey(name string) string {
+	return strings.ToLower(path.Clean(name))
+}
+
 func newXorrisoImageWriter() (isoImageWriter, error) {
 	if _, err := exec.LookPath("xorriso"); err != nil {
 		return nil, fmt.Errorf("xorriso ISO backend requires the xorriso executable: %w", err)
